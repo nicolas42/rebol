@@ -2,10 +2,6 @@
 
 rebol []
 
-files: request-file
-a: load files/1
-
-
 view-gif-viewer: func [ a ] [
 
 	draw-next: does [ a: next a i1/image: a/1 show i1 ]
@@ -13,7 +9,9 @@ view-gif-viewer: func [ a ] [
 
 	win: layout [
 
+	backcolor white
 	across
+	tt "testing testing 1 2 3"
 		button "load" [ files: request-file a: load files/1 i1/size: a/1/size i1/image: a/1 show i1 ] 
 		button "prev" [ draw-prev ] 
 		button "next" [ draw-next ] return
@@ -44,4 +42,10 @@ view-gif-viewer: func [ a ] [
 
 ]
 
-view-gif-viewer a
+main: [
+	files: request-file
+	a: load files/1
+	view-gif-viewer a
+]
+
+do main

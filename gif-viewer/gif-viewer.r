@@ -2,8 +2,8 @@
 
 rebol []
 
-f1: request-file/only
-a: load f1
+files: request-file
+a: load files/1
 
 
 view-gif-viewer: func [ a ] [
@@ -11,11 +11,17 @@ view-gif-viewer: func [ a ] [
 	draw-next: does [ a: next a i1/image: a/1 show i1 ]
 	draw-prev: does [ a: back a i1/image: a/1 show i1 ]
 
-	view/new layout [
-	    i1: image a/1 feel [
+	win: layout [
+
+	across
+		button "load" [ files: request-file a: load files/1 i1/size: a/1/size i1/image: a/1 show i1 ] 
+		button "prev" [ draw-prev ] 
+		button "next" [ draw-next ] return
+
+	    i1: image a/1 [ draw-next ] feel [
 	        engage: func [face action event] [
-			probe event/key
 	            print [action event/key]
+				if event/type = 'down [ draw-next return event ]
 				switch event/key [
 					left [draw-prev]
 					right [draw-next]
@@ -26,10 +32,16 @@ view-gif-viewer: func [ a ] [
 				event
 	        ]
 	    ]
+;		button "next" [ files: next files a: load files/1 i1/image: a/1 show i1 ]
+;		button "prev" [ files: back files a: load files/1 i1/image: a/1 show i1 ]
 	]
+	
+	view/new/options win [ resize ] 
 	focus i1
 	i1/text: none
 	show i1
 	do-events
 
 ]
+
+view-gif-viewer a

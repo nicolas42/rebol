@@ -1,0 +1,3 @@
+cd "$(dirname "$0")"
+echo $0
+rebol-view gif-viewer.r

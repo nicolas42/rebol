@@ -7,30 +7,28 @@ view-gif: func [ a ] [
 	draw-next: does [ a: next a i1/image: a/1 show i1 ]
 	draw-prev: does [ a: back a i1/image: a/1 show i1 ]
 	load-gif: does [ files: request-file a: load files/1 i1/size: a/1/size i1/image: a/1 show i1 ]
-	zoom-in: [ i1/size: i1/size * 1.1 show i1 ]
-	zoom-out: [ i1/size: i1/size / 1.1 show i1 ]
+	zoom-in: does [ i1/size: i1/size * 1.1 show i1 ]
+	zoom-out: does [ i1/size: i1/size / 1.1 show i1 ]
+
 	win: layout [
 
-	backcolor white
-	across
+		backcolor white
+		across
+	
 		button "load" 	keycode [#"^M"] 		[ load-gif ] 
 		button "prev" 	keycode [left #"j"] 	[ draw-prev ] 
 		button "next" 	keycode [right #"l"] 	[ draw-next ]
 		button "+" 		keycode [#"="] 			[ zoom-in ] 
 		button "-" 		keycode [#"-"] 			[ zoom-out ] 
+		button "quit" 	keycode [#"q" #"^q"] 	[ unview ]
+		button "halt" 	keycode [#"^["] 		[ halt ] return
 		
-		button "quit" keycode [#"^[" #"q" #"^q"] [ unview ] return
-	    i1: image a/1 [ draw-next ] feel [ engage: func [ face action event ] [
-			probe event/key
-			event
-		] ]
+	    i1: image a/1 [ draw-next ]
 				
 	]
 	
 	view/new/options win [ resize ] 
-	focus i1
-	i1/text: none
-	show i1
+	focus i1  i1/text: none  show i1
 	do-events
 
 ]

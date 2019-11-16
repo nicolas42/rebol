@@ -1,0 +1,55 @@
+rebol []
+
+a: [2 * 5 / 3 + 5 / 3 * 2]
+
+; reduce multiplications
+while [
+	b: find head a [*]
+] [
+	if attempt [ b: back b ] [
+		change/part b do copy/part b 3 3
+	]
+]
+
+; consolidate divisors
+divisors: copy []
+pos: a
+while [
+	pos: find/tail pos [/]
+] [
+	append divisors pos/1
+]
+
+tlcm: 1
+foreach d divisors [
+	tlcm: lcm tlcm d
+]
+
+b: a
+while [
+	b: find/tail b [/]
+] [
+	if attempt [ c: skip b -2 ] [
+		n: tlcm / c/3
+		poke c 1 n * c/1
+		poke c 3 n * c/3
+	]
+]
+
+; reverse distribute
+b: a
+while [
+	b: find/tail b [/]
+] [
+	if attempt [ c: skip b -2 ] [
+		n: tlcm / c/3
+		poke c 1 n * c/1
+		poke c 3 n * c/3
+	]
+]
+
+
+a: [2 + 3 append [] 2]
+reduce/only a [append]
+
+

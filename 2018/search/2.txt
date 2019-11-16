@@ -1,0 +1,66 @@
+index-files1: funct [
+	{Deep read a directory}
+	d "dir" o "output"
+] [attempt [
+
+	f: sort load d ;files
+	foreach f f [append o d/:f]
+	foreach f f [if #"/" = last f [index-files1 d/:f o]]
+	o
+]]
+
+index-files: funct [d "dir or block of dirs"] [
+	d: append copy [] d ;blockize input
+	o: copy [] ;output
+	foreach d d [index-files1 d o]
+	o
+]
+
+files:
+
+video-suffix: [
+	%.avi %.mpg %.mpeg %.divx %.mkv %.mov %.ogg %.rmvb %.rm
+	%.rmv %.m4v %.ogm %.m2v %.wmv %.flv
+]
+
+
+image-suffix: [%.jpg %.jpeg %.png %.bmp %.gif]
+music-suffix: [%.mp3 %.aac %.wma %.m4a]
+
+]
+
+
+search: func [ 
+	files query
+] [
+
+	files: copy files
+	if empty? query [
+		return files
+	]
+	query: parse query none
+	
+	foreach [a b] query [
+		set/any 'suffix switch a [
+			"video:" "videos:" [video-suffix]
+			"music:" [music-suffix]
+			"images:" "pictures:" "pics:" [image-suffix]
+			"suffix:" "suffixes:" [
+		]
+	]
+		
+	foreach word query [
+		set/any 'suffix switch word [
+			"video:" "videos:" [video-suffix]
+			"music:" [music-suffix]
+			"images:" "pictures:" "pics:" [image-suffix]
+		]
+		if suffix [
+			remove-each f files [
+				not find suffix
+		remove-each f files [
+			not find f word
+		]
+	]
+]
+

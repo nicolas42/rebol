@@ -1,0 +1,58 @@
+view-root
+ %/c/users/user/appdata/roaming/rebol/
+ 
+ view root is where request-download puts stuff
+ 
+ Which characters can't be used in a file name?
+You can't use any of the following characters in a file name: \ / ? : * " > < |
+src: http://windows.microsoft.com/en-au/windows-vista/file-names-and-file-name-extensions-frequently-asked-questions
+
+to-char to-integer to-issue 20
+=> #" "
+
+This is good for
+
+I'm trying to expand request-download so that it works for all urls. To do this I will change the url chars
+
+a: to-hex to-integer #" "
+a: to-string take/part/last a 2
+== "20"
+
+this is ready to be stuck into the string
+
+b: []
+foreach char ["\" "/" "?" ":" "*" {"} ">" "<" "|"] [
+	a: to-char char
+	a: to-hex to-integer a
+	append b char
+	append b to-string take/part/last a 2
+]
+
+url-to-file: funct [url][
+	b: ["\" "5C" "/" "2F" "?" "3F" ":" "3A" "*" "2A" {"} "22" ">" "3E" "<" "3C" "|" "7C"]
+	;url: http://www.rebol.org/download-a-script.r?script-name=parse-analysis-view.r
+	file: second split-path url
+	foreach [a b] b [
+		replace/all file a join "%" b
+	]
+	
+	site: first split-path url
+	site: find/tail site "://"
+	rejoin [view-root site file]
+]
+
+enhex: func [arg][
+	b: ["\" "5C" "/" "2F" "?" "3F" ":" "3A" "*" "2A" {"} "22" ">" "3E" "<" "3C" "|" "7C"]
+	foreach [a b] b [
+		replace/all arg a join "%" b
+	]
+	to-file arg
+]
+
+url: http://www.rebol.org/download-a-script.r?script-name=beersong.r
+url-to-file url
+
+request-download/to url file: url-to-file url
+
+
+

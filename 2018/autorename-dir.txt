@@ -1,0 +1,12 @@
+rebol [
+	date: 23-6-2013
+]
+
+autorename-dir: func [file /local n nf] [
+    n: 1 
+    file: undirize nf: copy file 
+    while [ exists? nf ] [
+        nf: dirize rejoin [file n: n + 1]
+    ] 
+    nf
+] 

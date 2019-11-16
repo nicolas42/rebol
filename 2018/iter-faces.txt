@@ -1,0 +1,46 @@
+rebol []
+
+print "Click on the iterated faces."
+
+selected: 0
+
+aface: make face [
+    size: 100x20
+    text: "Test"
+    edge: none
+    feel: make feel [
+        engage: func [face action event] [
+            print ["Engage" face/data action]
+            if action = 'down [
+                selected: face/data
+                show main-face
+            ]
+        ]
+    ]
+    data: 0
+]
+
+pane-func: func [face index] [
+    ; RETURNS: face, index number, or none
+    ; ?? index
+    either integer? index [
+        ; Draw needs to know offset and text:
+        if index <= 10 [
+            aface/data: index
+            aface/offset/y: index - 1 * 20
+            aface/text: form aface/offset
+            aface/color: if selected = index [gold]
+            return aface
+        ]
+    ][
+        ; Events need to know iteration number:
+        return to-integer index/y / 20 + 1
+    ]
+]
+
+view main-face: make face [
+    offset: 100x100
+    size: 100x220
+    edge: none
+    pane: :pane-func
+]

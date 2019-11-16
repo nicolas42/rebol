@@ -1,0 +1,92 @@
+rebol[]
+
+parselines: function [a][o][
+	o: copy[]
+	p1: a p2: none
+	while [not none? p2: find/tail p1 {^/}][
+		append o copy/part p1 p2
+		p1: p2
+	]
+	o
+]
+
+;find the number of tabs that a line begins with
+numtabs: function [a [string!]] [n][
+	n: 0
+	while [
+		a/1 = #"^-"
+	][
+		a: next a
+		n: n + 1
+	]
+	return n
+]
+testnumtabs: does [all[
+	equal? 3 numtabs "^-^-^-sometihgnasfd asd fa f ^-"
+	equal? 0 numtabs "sometihgnasfd asd fa f ^-"	
+]]
+testnumtabs
+
+
+change-dir %/C/Users/User/Desktop/
+a: read/lines %test4.txt ;debracketed code
+
+insertbrackets: function [][nt1 nt2 n][
+	forall a [
+		if none? a/2 [break]
+		
+		nt1: numtabs a/1
+		nt2: numtabs a/2
+		dt: nt2 - nt1 ;difference in tabs dt
+		
+		probe dt
+		either positive? dt [
+			loop dt [append a/1 {[}]
+		][
+			loop negate dt [append a/2 {]}]
+		]
+	]
+	
+	a: head a
+	b: {}
+	forall a [
+		append b a/1 append b newline
+	]
+	editor b
+]
+
+insertbrackets a
+
+
+{
+	a: {
+	backup-dir: funct  
+	^-d: make-dir now-file
+	^-copy-dir d
+	^-d
+	
+	}
+	
+	a: parse/all a {^/}
+	
+
+}
+
+test-insert-brackets: does 
+	equal? insertbrackets {now-time-file: does
+		to-file rejoin
+			widen-number rejoin parse form now/time/precise ":." 9
+	}
+	{now-time-file: does[
+		to-file rejoin[
+			widen-number rejoin parse form now/time/precise ":." 9
+	]]}
+
+
+do1: func [a][
+	do insert-brackets a
+]
+reduce1: func [a][
+	reduce insert-brackets a
+]
+

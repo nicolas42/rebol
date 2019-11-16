@@ -1,0 +1,130 @@
+rebol []
+
+files: read what-dir
+insert files %../
+
+print "Click on the iterated faces."
+
+selected: 0
+
+aface: make face [
+    size: 300x20
+    text: "Test"
+    font: make font [
+    	align: 'left
+    ]
+    edge: none
+    feel: make feel [
+        engage: func [face action event] [
+            print ["Engage" face/data action]
+            if action = 'down [
+            	either #"/" = last face/text [
+	            	if attempt [read files/:data] [
+	            		selected: none
+	            		change-dir files/:data
+	            		files: read what-dir
+	            		insert files %../
+	            		do bind [
+	            			offset: 0x0
+	            			size: as-pair aface/size/x 20 * length? files
+	            			show self
+	            		] main-face
+	            	]
+            	] [
+	                selected: face/data
+	                show main-face
+                ]
+            ]
+        ]
+    ]
+    data: 0
+]
+
+pane-func: func [face index] [
+    ; RETURNS: face, index number, or none
+    ; ?? index
+    either integer? index [
+        ; Draw needs to know offset and text:
+        if index <= 1000 [
+        	do bind [
+            	data: index
+            	offset/y: index - 1 * 20
+            	text: ""
+            	if files/:index [
+            		text: form files/:index
+            	]
+            	color: if selected = index [yello]
+            	return self
+            ] aface
+        ]
+    ][
+        ; Events need to know iteration number:
+        return to-integer index/y / 20 + 1
+    ]
+]
+
+main-face: make face [
+	color: white
+    size: as-pair aface/size/x 800
+    edge: none
+    pane: :pane-func
+    feel: make feel [
+    	engage: func [f a e][
+    		if a = 'scroll-line [
+    			f/offset: f/offset - (0x30 * e/offset)
+    			show f
+    		]
+    	]
+    ]
+]
+
+face2: make face [
+	offset: 100x100
+	size: 300x300
+	pane: reduce [main-face]
+]
+
+sv: system/view
+
+sv/focal-face: main-face
+
+; code causing errors relating to focusing different faces
+remove sv/screen-face/feel/event-funcs
+
+view/options face2 [resize]
+
+quit 
+
+; code causing errors relating to focusing different faces (event-funcs, error at dirty?)
+make object! [
+    redraw: none
+    detect: func [face event][
+        foreach evt-func event-funcs [
+            if not event? evt-func: evt-func face eve
+nt [
+                return either evt-func [event] [none]
+
+            ]
+        ]
+        event
+    ]
+    over: none
+    engage: none
+    event-funcs: [func [face event /local fac][
+            if all [
+                system/view/focal-face
+                event/type = 'down
+                not within? event/offset win-offset? system/view/focal-face system/view/focal-face/size
+                system/view/focal-face/dirty?
+            ] [
+                fac: system/view/focal-face
+                unfocus
+                if flag-face? fac on-unfocus [
+                    do-face fac none
+                    fac/dirty?: none
+                ]
+            ]
+            event
+        ]]
+]
+

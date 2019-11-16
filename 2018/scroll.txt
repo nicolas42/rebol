@@ -1,0 +1,48 @@
+rebol []
+
+palms: load-thru/binary http://www.rebol.com/view/palms.jpg
+
+; Duplicate image 4 times to make it appear endless:
+img: draw palms/size * 2x2 compose [
+    image 0x0 palms
+    image (palms/size * 1x0) palms
+    image (palms/size * 0x1) palms
+    image (palms/size * 1x1) palms
+]
+
+main-face: make face [
+    offset: 100x100
+    size: palms/size
+    edge: none
+    pane: reduce [
+        make face [
+            offset: 0x0
+            size: img/size
+            image: img
+            edge: none
+            rate: 50
+            feel: make feel [
+                engage: func [face action event] [
+                	if event/type = 'scroll-line [ print "yawp"]
+
+                    if action = 'scroll-line [
+                        offset: offset - 1x2
+                        if offset/x <= (negate palms/size/x) [
+                            offset/x: 0
+                        ]
+                        if offset/y <= (negate palms/size/y) [
+                            offset/y: 0
+                        ]
+                        show face
+                    ]
+                ]
+            ]
+        ]
+    ]
+]
+
+sv: system/view
+
+sv/focal-face: main-face/pane/1
+
+view main-face

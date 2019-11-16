@@ -1,0 +1,30 @@
+rebol [ ]
+
+probe dt [ files: read-deep %../ ]
+probe dt [ music: keep-suffix files music-suffix ]
+probe dt [ video: keep-suffix files video-suffix ]
+probe dt [ images: keep-suffix files image-suffix ]
+probe dt [ results: search music "peppers" ]
+
+Since indexation takes such a long time, filtering by suffix or searching should be done separately to indexation.
+
+files: index-files %../ copy []
+
+files: read-deep %../
+
+files: index-files %../
+
+files: index-files %../
+
+search "video: peppers"
+
+search "video:"
+search {suffix: "mp3 wma m4a" peppers}
+
+search "something else to do these types of things now"
+
+append
+
+
+
+

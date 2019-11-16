@@ -1,0 +1,54 @@
+rebol [ ] 
+
+do %get-files.r
+f: get-files [%../ %.jpg]
+
+win: layout [
+	backcolor white
+	size 600x600
+	
+	image load f/1
+	image load f/2
+	image load f/3
+	image load f/4
+	image load f/5
+	image load f/6
+]
+
+view/new/options win [ resize ]
+
+do-event-key: func [ face event ] [
+	either all [
+		event/type = 'key
+		face: find-key-face face event/key
+	] [
+		if get in face 'action [do-face face event/key]
+		none
+	] [
+		event
+	]
+]
+
+win/feel/detect: func [ face event ] [
+
+	do-event-key face event
+	
+	if find [ page-down ] event/key [ 
+		foreach face win/pane [
+			face/offset: face/offset - as-pair 0 win/size/y / 2
+		]
+		show win
+	]
+	if find [ page-up ] event/key [ 
+		foreach face win/pane [
+			face/offset: face/offset + as-pair 0 win/size/y / 2
+		]
+		show win
+	]
+
+	event
+]
+
+do-events
+
+

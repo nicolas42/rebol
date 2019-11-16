@@ -1,0 +1,57 @@
+
+rebol []
+
+make-vlc-playlist: func [files][
+	
+	rejoin [
+	
+		trim/auto {
+			<?xml version="1.0" encoding="UTF-8"?>
+			<playlist version="1" xmlns="http://xspf.org/ns/0/" xmlns:vlc="http://www.videolan.org/vlc/playlist/ns/0/">
+			<trackList>
+		
+		}
+			
+		collect [
+			foreach f files [
+				 keep rejoin [
+				 	"<track><location>" "file:///" second f "://" skip f 3 "</location></track>" newline
+				]
+			]
+		]
+		
+		
+		trim/auto {
+
+			</trackList>
+			</playlist>
+		
+		}	
+	]
+]
+
+autorename: funct [
+	file 
+	/local suffix n newfile
+][
+	if not exists? file [
+		return file
+	]
+	
+	file: copy file
+	suffix: copy ""
+	if find file "." [
+		suffix: suffix? file
+		clear find/reverse tail file "."
+	]
+	
+	; renames file to file2, not file1 so file can later be manually renamed to file1
+	n: 1
+	until [
+		not exists? newfile: rejoin [file n: n + 1 suffix ]
+	]
+	newfile
+]
+
+
+attempt [ write autorename %playlist.xspf make-vlc-playlist request-file ] 

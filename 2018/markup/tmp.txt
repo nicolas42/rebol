@@ -1,0 +1,45 @@
+rebol []
+
+
+markup: use [ build-tags ] [
+	build-tags: func [
+		arg o tabs /local a b c d
+	][
+		forall arg [
+		
+			a: arg/1
+			a: append copy [] a
+			c: append copy [] to-refinement first a
+			
+			append o probe reduce [ tabs a: build-tag a newline ]
+	
+			if not-equal? #"/" last a [
+			
+				arg: next arg
+				b: arg/1
+				
+				either block? b [
+					probe append o build-tags b copy [] join tabs tab ;[1]
+
+				] [
+					append o probe reduce  [ join tabs tab b newline ] 
+				]
+				
+				append o probe reduce  [ tabs build-tag c newline ]
+			]
+		]
+		o
+	]
+	
+	markup: func [ 
+			{	markup [tag [ tag2 "something" ] ]
+		 => <tag><tag2>something</tag2></tag> }
+		a 
+	] [ 
+		build-tags a copy [] copy {}
+	]
+]
+
+a: markup [ something [ now [ else {to do} something {else} ] isn-t {this} [fun /] ] ]
+
+editor to-string a

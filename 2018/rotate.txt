@@ -1,0 +1,8 @@
+rebol []
+
+rotate: func [s] [
+	if tail? s: next s [s: head s] s
+]
+rotate-back: func [s] [
+	if head? s [s: tail s] s: back s
+]

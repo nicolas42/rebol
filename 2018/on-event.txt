@@ -1,0 +1,39 @@
+rebol []
+
+; This style of interface programming is more flexible
+
+view/new layout [
+	a: area
+]
+
+bind1: func [a][bind/copy bind/copy a system/view ctx-text]
+
+on-down: func [face event] bind1 [
+	either equal? face focal-face [unlight-text] [focus/no-show face]
+	caret: offset-to-caret face event/offset
+	show face
+]
+
+on-over: func [face event] bind1 [
+	 if not-equal? caret offset-to-caret face event/offset [
+		 if not highlight-start [highlight-start: caret]
+		 highlight-end: caret: offset-to-caret face event/offset
+		 show face
+	 ]
+]
+
+on-key: func [f e] bind1 [
+	edit-text f e get in face 'action
+]
+
+a/feel/engage: func [f act e] bind1 [
+	switch act [
+		down [on-down f e]
+		over [on-over f e]
+		key [on-key f e]
+	]
+]
+
+
+wait []
+

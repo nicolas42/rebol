@@ -1,0 +1,54 @@
+rebol []
+
+do-not-care: func [
+	{robust do. doesn't care about anything. Only takes a string to prevent invalid syntax errors during load.}
+	arg [string!]
+	/local a
+] [
+	attempt [ set/any 'a try [ do arg ] ]
+	if not value? 'a [ a: disarm try [do do []]]
+	if error? a [ a: mold probe disarm a ]
+	return a
+]
+
+; draw seems to make much nicer pictures
+; tried default engine with blur. no good. too blurry
+
+
+fit-image: funct [a b "max size"] [
+	a * first minimum-of reduce [
+		b/x / a/x	b/y / a/y
+	]
+]
+
+ files: request-file/keep
+
+image-data: load files/1
+win: layout [
+	backcolor black origin 1 space 1 across
+	
+	; a: image 400x400 image-data effect [fit]
+	b: box 400x400 effect compose/deep [draw [image image-data 0x0 b/size] ] 
+	key keycode [right] [next-image]
+	key keycode [left] [back-image]
+]
+
+view/new/options win [resize]
+
+insert-event-func [
+	if event/type = 'resize [
+		b/size: fit-image image-data/size win/size
+		show b
+	]
+	event
+]
+
+next-image: does [ do-not-care {
+	image-data: load first files: next files b/size: fit-image image-data/size win/size show b
+} ]
+back-image: does [ do-not-care {
+	image-data: load first files: back files b/size: fit-image image-data/size win/size show b
+} ]
+
+
+do-events

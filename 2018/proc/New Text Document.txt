@@ -1,0 +1,12 @@
+rebol []
+
+server-port: open/lines tcp://:50'001
+
+write tcp://localhost:50000 { 
+	write tcp://localhost:50'001 {2 + 3} 
+}
+connection-port: first server-port 
+wait connection-port 
+result: attempt [do first connection-port] 
+close connection-port 
+probe result

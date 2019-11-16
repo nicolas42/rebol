@@ -1,0 +1,21 @@
+page: read http://www.reddit.com/r/funny/comments/1eejhm/here_in_alberta_the_girls_get_rifles_as_grad_gifts/
+
+
+backup: copy page
+tags: load/markup backup
+forall tags [
+	if tags/1/1 = #"a" [
+		link: l: tags/1
+		l: next l
+		forskip l 2 [
+			if l/1 = 'tabindex= [
+				l/2: -1
+			]
+		]
+		l: mold head l
+		change l {<}
+		change back tail l {>}
+		change tags l
+	]
+]
+

@@ -1,0 +1,4 @@
+LIBRARY cellular-automaton.dll
+
+EXPORTS
+cellular_automaton

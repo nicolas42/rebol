@@ -1,0 +1,8993 @@
+rebol []
+
+do1: func [
+	{robust do. doesn't care about anything. Only takes a string to prevent invalid syntax errors during load.}
+	arg [string!]
+	/local a
+] [
+	attempt [ set/any 'a try [ do arg ] ]
+	if not value? 'a [ a: disarm try [do do []]]
+	if error? a [ a: mold disarm a ]
+	return a
+]
+
+try1: funct [a b][
+	if error? set/any 'err try a [
+		err: disarm err
+		return do bind b 'err
+	]
+	a
+]
+
+next1: func ['a][
+	set a next get a
+	if tail? get a [set a head get a]
+	first get a
+]
+
+back1: func ['a][
+	if head? get a [set a tail get a]
+	set a back get a
+	first get a
+]
+
+subdue: func [
+	{Prevent errors from halting execution. 
+	Returns result or a disarmed error. 
+	Essentially it's try and disarm if error.
+	Example: subdue [1 / 0]}
+	a /print /local it
+][
+	if error? set/any 'b try a [return disarm b] b
+]
+
+hypotenuse: func [
+	{Calc hypotenuse length from two sides} 
+	a b
+][
+	square-root add power a 2 power b 2
+]
+
+pythagoras: func [
+	{Calculate the other side of the triangle given the hypotenuse and one side}
+	hyp a
+][
+	square-root subtract power hyp 2 power a 2
+]
+
+make-object: func [
+	{Make an object from a block of words.
+	Example: 
+		a: 2 b: 3 c: make-object [a b] probe c}
+	a
+	/local o
+][
+	o: copy []
+	foreach a a [
+		append o to-set-word a
+		append o get a
+	]
+	return make object! o
+]
+
+{
+	What do you want to talk about now, my favorite color?
+	http://s22.postimg.org/4t8q82wht/lastslide.png
+}
+
+http: func [
+	{Example Of Usagae 
+>> http [org postimg image uosgr9ybh]
+== http://postimg.org/image/uosgr9ybh}
+	a
+][
+	u: join http:// [a/2 "." a/1]
+	a: skip a 2
+	foreach a a [
+		u: join u ["/" a]
+	]
+	u
+]
+	
+nargs: args-of: funct [a] [
+
+	comment {
+		The argument is a block which has as its first member a function. This function may have refinements. The arguments are found with a recursive first operation [1]. First of all the argument is a block which is a series, then if it has refinements it is a series. Once it is only a word then we get it and then... unfinished}
+
+	;awr arguments without refinements,
+	
+	;[copy/part] [value /part range /deep] [value] part
+	
+
+	b: a
+	if series
+	while [series? b] [b: first b] ;[1]
+	b: first get b
+
+	o: copy/part b any [find b refinement! tail b]
+	if not series? a/1 [return o]
+	a: next first a
+
+	;part [value /part range /deep] 			[value] 
+	
+	forall a [
+		r: find/tail b to-refinement a/1
+		if r [append o copy/part r any [find r refinement! tail r]]
+	]
+	o
+]
+
+comment [
+	args-of: func [word /local args args-no-refinements it] [
+	
+		recursive-first: rfirst: func [blk] [
+			while [series? blk] [blk: first blk]
+		]
+	
+		args: 	first get recursive-first word
+		args-no-refinements: copy/part args any [find args refinement! tail args]
+		if not series? first word [return args-no-refinements]
+	
+		refinements: next first word
+		forall refinements [
+			if it: find/tail args to-refinement first refinements [
+				append args-no-refinements copy/part it any [find it refinement! tail it]
+			]
+		]
+	]
+]
+
+comment [
+	index-files: func [d o /local f][attempt [
+		f: read d
+		foreach f f [append o d/:f]
+		foreach f f [
+			if #"/" = last f [
+				index-files d/:f o
+		]]
+		o
+	]]
+]
+
+make-vlc-playlist: func [f /local a b o][
+
+	a: {<?xml version="1.0" encoding="UTF-8"?>
+	<playlist version="1" xmlns="http://xspf.org/ns/0/" xmlns:vlc="http://www.videolan.org/vlc/playlist/ns/0/">
+		<title>Playlist</title>
+		<trackList>
+	}
+		
+	b: {
+	</trackList>
+	</playlist>}
+	
+	o: copy {}
+	
+	
+	foreach f f [
+		 append o rejoin [
+		 	"<track><location>" "file:///" second f "://" skip f 3 "</location></track>" newline
+		]
+	]
+	
+	a: rejoin [a o b]
+]
+
+
+comment [
+	f: index-files %/e/ []
+	remove-each f f [
+		not find [%.avi %.mpg %.mpeg %.divx] suffix? f
+	]
+	editor make-vlc-playlist f
+]
+
+;build-tag
+
+test-count-tabs: does [
+	all[
+		equal? 3 count-tabs "^-^-^-sometihgnasfd asd fa f ^-"
+		equal? 0 count-tabs "s^-ometihgnasfd asd fa f ^-"	
+	]
+]
+
+count-tabs: func [
+	{find the number of tabs that a line begins with}
+	a [string!]
+][
+	while [equal? tab first a][set 'a next a]
+	subtract index? a 1
+]
+
+insert-brackets: func [a /local nt1 nt2 dt][
+
+	requires [count-tabs]
+	if not value? 'count-tabs 
+	forall a [
+		if none? second a [break]
+		
+		nt1: count-tabs a/1
+		nt2: count-tabs a/2
+		dt: nt2 - nt1 ;difference in tabs dt
+		
+		probe dt
+		either positive? dt [
+			loop dt [append a/1 {[}]
+		][
+			loop negate dt [append a/2 {]}]
+		]
+	]
+	
+	set 'a head a
+	set 'b copy {}
+	forall a [
+		append b first a 
+		append b newline
+	]
+	editor b
+]
+
+each: func ['a b /local o][
+	o: copy []
+	do reduce [
+		'foreach a a bind b 'o
+	]
+]
+
+
+cfor: func [
+  {General loop. Slower than while}
+  [throw catch]
+  init [block!]
+  test [block!]
+  inc [block!]
+  body [block!]
+  /local result
+  ] [
+  do init while [do test] [set/any 'result do body do inc get/any 'result]
+]
+
+localize: func [a][
+	rejoin [{"} to-local-file {"}]
+]
+rebolize: :to-rebol-file
+
+thumb: funct [
+	{rebol doesn't save jpgs}
+	img
+][
+	;img/size/y * x = 300 ;scaling factor x
+	x: 300 / img/size/y
+	sz: img/size * x
+	draw sz [image img sz]
+]
+	
+;build-tag
+htmlize: func [arg][
+
+	a: replace/all copy arg {'} {"}
+	a: parse/all a {^/}
+	remove-each a a [empty? a]
+	forall a [
+		b: a/1
+		case [
+			empty? b []
+			b/1 = #"{" [take b take/last b append b {^/}]
+			true [
+			
+				c: next parse b none
+				
+				forskip c 2 [
+					if none? c/2 [print {perhaps your multiword arguments are not quotated i.e. 'example example'}]
+					insert c/1 { }
+					insert c/2 {='}
+					append c/2 {'}
+				]
+				c: rejoin head c
+				insert c "<"
+				append c ">^/"
+				
+				change a c
+			]
+		]
+	]
+	
+	write clipboard:// rejoin head a
+]	
+
+;htmlize does this
+
+{body 
+div class hfeed
+div class 'hentry activity'
+span class id
+{z13kvbgw4uapele4m04cht0ykzikxnrw3fc}
+/span
+span class actor-photo
+address class 'author vcard'
+a target _blank href https://plus.google.com/104872391097288399357 
+img class photo alt 'nicolas schmidt' src https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg?sz=50
+/a
+span
+a target _blank class url href https://plus.google.com/104872391097288399357
+span class fn dir ltr
+{nicolas schmidt}
+
+<body>
+<div class='hfeed'>
+<div class='hentry activity'>
+<span class='id'>
+z13kvbgw4uapele4m04cht0ykzikxnrw3fc
+</span>
+<span class='actor-photo'>
+<address class='author vcard'>
+<a target='_blank' href='https://plus.google.com/104872391097288399357'>
+<img class='photo' alt='nicolas schmidt' src='https://lh3.googleusercontent.com/-XdUIqdMkCWA/AAAAAAAAAAI/AAAAAAAAAAA/4252rscbv5M/photo.jpg?sz=50'>
+</a>
+<span>
+<a target='_blank' class='url' href='https://plus.google.com/104872391097288399357'>
+<span class='fn' dir='ltr'>
+nicolas schmidt
+}
+eq: :equal?
+neq: func [a][
+	not equal? a
+]
+
+
+beep: does [
+call/show/wait "echo ^G"
+]
+
+clip: func [a][write clipboard:// a]
+
+{foreach v get-values [title: attempt [title-of get :v] if title [print [v newline title]]]}
+
+demo-resizeable-moveable-area: funct [
+	{original code from NickA re-bol.com}
+][
+	
+	engage-area*: func [f act e] bind/copy bind/copy [
+	    switch act [
+	        down [
+	            either equal? f focal-face [unlight-text] [focus/no-show f]
+	            caret: offset-to-caret f e/offset
+	            show f
+	
+	            ;move resize code
+	            initial-position: . e/offset
+	            initial-size: f/size
+	            remove find f/parent-face/pane f
+	            append f/parent-face/pane f
+	            move?: either inside? 20x20 initial-position [on][off]
+	            resize?: either outside? (f/size - 20x20) initial-position [on][off]
+	        ]
+	        over away [
+	
+	            ;move resize code
+	            if resize? [f/size: initial-size + (e/offset - initial-position)]
+	            if move? [f/offset: f/offset + (e/offset - initial-position)]
+	            show f
+	
+	            if not-equal? caret offset-to-caret f e/offset [
+	                if not highlight-start [highlight-start: caret]
+	                highlight-end: caret: offset-to-caret f e/offset
+	                show f
+	            ]
+	        ]
+	        key [edit-text f e get in f 'action]
+	    ]
+	] system/view ctx-text 
+
+
+	win: layout [fac: area "Click the top left corner to move. ^/Click the bottom right corner to resize."]
+	view/new/options win [resize]
+	fac: make fac [initial-position: initial-size: move?: resize?: none] ;put
+	fac/feel/engage: :engage-area*
+	do-events
+]
+
+insert-char: func [
+	face char
+][
+	ctx-text/insert-char face char 
+	show face
+]
+
+{on-key: funct [interface do-this] [
+	;engage has a switch statement
+	a: second get in interface/feel 'engage
+	a: select select :a [switch act] [key]
+	append a bind/copy do-this a/2
+]}
+
+;rebol pronouns
+
+
+;what's the difference between get word and :word?
+
+http://www.catch22.net/tuts/reducing-executable-size
+
+convert: funct [s type] [
+	o: copy []
+	foreach s s [
+		append o to type s
+	]
+]
+
+
+video-suffix: [
+	%.avi %.mpg %.mpeg %.divx %.mkv %.mov %.ogg %.rmvb %.rm
+	%.rmv %.m4v %.ogm %.m2v %.wmv %.flv
+]
+
+
+image-suffix: [%.jpg %.jpeg %.png %.bmp %.gif]
+music-suffix: [%.mp3 %.aac %.wma %.m4a]
+
+index-files: funct [
+	{Deep read a directory}
+	d "dir" o "output"
+] [attempt [
+
+	f: sort load d ;files
+	foreach f f [append o d/:f]
+	foreach f f [if #"/" = last f [index-files d/:f o]]
+	o
+]]
+
+readd: read-deep: funct [d "dir or block of dirs"] [
+	d: append copy [] d ;blockize input
+	o: copy [] ;output
+	foreach d d [index-files d o]
+	o
+]
+
+readdt: funct [
+	{Read deep type marries together directories and suffixes. It does a deep
+	read of the directories and then removes all files that do not have one of the 
+	suffixes provided.}
+	d s
+][
+	remove-each f readd d [not find s suffix? f]
+]
+
+use [old-dir][
+
+	{cd change-dir wd what-dir ld list-dir od old-dir
+	od old-dir restores the previous directory
+	cd works on local and rebol formatted directories} 
+	
+	wd: :what-dir
+	ld: :list-dir	
+	cd: func [dir] [
+		old-dir: what-dir 
+		change-dir to-rebol-file dir
+	]
+	od: does [change-dir old-dir]
+]
+
+ro: func [a][random/only a]
+
+whitespace: charset " ^-^/"
+
+get-type: funct [
+	{e.g. get-type tuple! returns all the colors in rebol.
+	compare with dump-obj/match
+	}
+	a
+] [
+	w: words-of system/words
+	o: copy []
+	foreach w w [
+		if all [value? w equal? a type? get w] [append o get w] o
+	]
+]
+
+;si hoc legere scis nimium eruditionis habes
+
+get-values: funct [
+	{Get words with values.
+	There's lots of words that are unset. 
+	For instance:
+	>> length? words-of system/words
+	== 3230
+	>> length? get-values
+	== 805
+	}
+][
+	w: words-of system/words
+	v: copy []
+	foreach w w [
+		if value? w [append v w]
+	]
+	v: load v
+]
+
+titlecase: func [
+	{;>> titlecase "Hello how are you?"
+	;== "Hello How Are You?"
+	;related: uppercase, lowercase
+	}
+	a
+] [
+	o: copy []
+	foreach a parse a none [
+		append o join uppercase take a a
+	]
+	form o
+]
+
+gibberish: {a/sdfa']2432[34[04'1234'jeka'sdkfj'alskdadf asdjf ;alkdsfj;akdsf;aksdj;fd}
+
+;++ a is equivalent to a: next a OMG!
+
+{
+int *a
+
+int w, h, l;
+w = 800;
+h = 400;
+l = w*h
+
+int x, y;
+for y = 0; y <= h-1; y++ {
+for x = 0; x <= w; x++ {
+	*a = 1;
+}}
+	
+http://www.fm.tul.cz/~ladislav/rebol/library-utils.r
+
+}
+
+http://www.fm.tul.cz/~ladislav/rebol/library-utils.r
+
+slice: func [a lo hi] [copy/part at a lo hi]
+;it would be nice to have a real slice function.
+;just use a block with a length I suppose
+
+yawp: does [print "YAWP!"]
+
+handle: func [
+	{Insert this and only this event func globally. 
+	The initial global event function is there too tho.
+	To remove all user global event functions just call handle []}
+	a
+] bind/copy [
+
+	screen-face/feel/event-funcs: copy [func [face event /local fac][
+        if all [
+            focal-face
+            event/type = 'down
+            not within? event/offset win-offset? focal-face focal-face/size
+
+            focal-face/dirty?
+        ] [
+            fac: focal-face
+            unfocus
+            if flag-face? fac on-unfocus [
+                do-face fac none
+                fac/dirty?: none
+            ]
+        ]
+        event
+    ]]
+
+	if empty? a [return screen-face/feel/event-funcs]
+	
+	insert-event-func reduce [
+		'switch 'event/type a
+		'event
+	]
+	:a
+	
+] system/view
+
+
+do [
+	;making rebol pretty
+
+	;The colors of windows programs
+	windows-edge: to-tuple #{a7a6aa}
+	windows-color: to-tuple #{ebe9ed}
+	
+	itunes-color: to-tuple #{f2f5f9}
+	
+	;yello == 255.240.120 ;color of text-list selected items
+
+	stylize/master [
+
+		progress: progress white edge [
+			size: 1x1 
+			effect: none
+			color: windows-edge
+		]
+
+		link: text blue 
+			font reduce [colors: reduce [blue red]]
+			para [origin: 0x1 margin: 0x1]
+
+		timer: sensor 0x0 rate 1 feel [
+			engage: func [f a e] [if a = 'time [f/action f e]]
+		]
+
+		area: area wrap white white
+			edge [color: windows-edge size: 1x1 effect: none]
+			para [tabs: 10]  
+			effect [aspect]
+			
+		field: field white white
+			edge [color: windows-edge size: 1x1 effect: none]
+			effect [aspect]
+
+		button: button plain windows-color 
+			edge none
+			font [color: black shadow: none colors: reduce [black silver]]
+			effect [] ;takes away 'over' effect i.e. font color change on mouse over
+			
+		key: key -20x-20
+
+		debug: key keycode [f2] [halt]
+		escape-key: key escape [halt]	;old
+
+		gif: image with [
+			frames: copy [] 
+			rate: 15
+			feel: make feel [
+				engage: func [face action event] [
+					if action = 'time [
+						face/image: first face/frames 
+						if tail? face/frames: next face/frames [
+							face/frames: head face/frames
+						] 
+						show face
+					]
+				]
+			] 
+			words: [
+				frames [append new/frames second args next args] 
+				;rate func [new args][new/rate: second args next args]
+				;data func [new args][new/data: second args next args]
+			] 
+			init: append copy init [
+				;forall frames [change frames load-image first frames] 
+				frames: head frames 
+				image: first frames
+				size: image/size
+			]
+		]
+	]
+]
+resize-feel: make object! [
+
+    engage: func [
+		{Makes face moveable and resizeable. Resizes fired if initial click is in bottom right hand corner. 
+		uses variable's initial-position initial-size resize?}
+		f a e
+	] [
+        if a = 'down [
+            initial-position: . e/offset
+			
+			initial-size: f/size
+			
+            remove find f/parent-face/pane f
+            append f/parent-face/pane f
+			resize?: either outside? (f/size - 20x20) initial-position [on][off]
+        ]
+        if find [over away] a [
+			either resize? [
+				f/size: initial-size + (e/offset - initial-position)
+			][
+				f/offset: f/offset + (e/offset - initial-position)
+			]
+        ]
+		{if a = 'alt-down [yawp
+			attempt [f/image: load ro images]
+			show f
+		]}
+        show f
+    ]
+]
+
+;http://www.fm.vslib.cz/~ladislav/rebol/library-utils.r
+;convert binary to int how?
+
+make-faces: :layout
+
+ntp: does [now/time/precise]
+
+[
+	{Calculate probability that two people in a group have the same birthday. 
+	1. Find the probability p of uniqueness of birthdays
+	2. subtract p from 1}
+	group-size: 22
+	p: 1 
+	repeat n group-size [p: 365 - n / 365 * p]
+	1 - p
+]
+http://en.wikipedia.org/wiki/Motion_interpolation
+
+;protect-values: does [protect get-values]
+
+;dean baker economist
+
+google-cache: func [url] [
+	join {http://webcache.googleusercontent.com/search?q=cache:} url
+]
+
+gif-viewer: gif-player: funct [] [
+
+	;interface left/right keys, left/right mouse buttons
+
+	;left key - previous gif
+	;right key next gif
+	;left click pauses, 
+	;right click selects directory 
+	;deep reads directory for gif files
+	
+	draw-gif: does [
+		draw b/image [image g/1]
+		g: rotate g
+		if head? g [draw b/image compose [image (first head g)]]
+		show b
+	]
+
+	next-gif: does [
+		until [
+			f: rotate f 
+			g: load f/1 
+			all [block? g image? g/1 inside? g/1/size 50x50]
+		]
+		b/size: b/parent-face/size: g/1/size 
+		b/image: make image! g/1/size
+		show b/parent-face
+	]
+
+	prev-gif: does [
+		until [
+			f: rotate-back f 
+			g: load f/1 
+			all [block? g image? g/1 inside? g/1/size 50x50]
+		]
+		b/size: b/parent-face/size: g/1/size 
+		b/image: make image! g/1/size
+		show b/parent-face
+	]
+
+	f: readdt request-dir/keep [%.gif]
+	until [
+		g: load f/1 
+		f: rotate-back f 
+		all [block? g image? g/1 inside? g/1/size 50x50]
+	]
+
+	w: center-face layout [
+		origin 0 backcolor black
+		b: image g/1 #" " [t/rate: either t/rate [none][15] show t] [f: readdt request-dir/keep [%.gif]] 
+		key keycode [right] [next-gif]
+		key keycode [left] 	[prev-gif]
+		t: timer -20x-20 rate 15 [draw-gif]			
+	]
+
+	ef: handle [
+		resize [b/size: fit-size b/size w/size show w]
+		close	[remove-event-func :ef]
+	]
+	w
+]
+
+{My father long ago told me that Einstein and Bohr would correspond through letters, and one of them asked the other to solve the following puzzle. 
+I don't remember the solution or which of the two had the correct answer.
+
+You have two containers. One contains liquid A and the other contains liquid B. 
+Using a ladle, you scoop one ladle of liquid A up and pour it into liquid B. 
+Then, using the same ladle again, you pour one scoop of liquid B into liquid A.
+Which liquid contains more of the other? Is there more A in B, or more B in A?
+
+
+container of liquid a		- container 1
+container of liquid b		- container 2
+
+ca
+cb
+
+take a ladel of liquid from container 1 and add it to container 2
+
+ca - la
+cb + la
+
+take a ladel of liquid from container 2 and add it to container 1.
+tricky. now we can't just use
+	
+		l(cb + la) because that would be more than the original ladel la. 
+		if you divide cb + la by c + l then the amount of liquid in a ladel is again equal to one ladel full.
+		l(cb + la)	now this term has the same amount of liquid as la
+			c + l
+
+that's the tricky part
+
+ca - la + lcb/(c+l) + la/(c+l)
+
+(	ccb + cla + lcb + lla - lcb - la ) / ( c + l )
+
+ca - la + (lcb + lla)/(c + l)
+cb + la + (-lcb - lla)/(c + l)
+
+(ca - la) (c + l)
+cca + lca - cla - lla
+(cb + la) (c + l)
+ccb + lcb + cla + lla
+
+cca + lca - cla - lla + lcb + lla
+	c + l
+ccb + lcb + cla + lla - lcb - lla
+	c + l
+	
+cca + lcb
+	c + l
+ccb + cla
+	c + l
+
+
+
+
+}
+
+{func carry(a []int) []int{
+	
+	for i := len(a)-1; i >= 10; i-- {
+		if a[i]>9 {
+			r := []rune(strconv.Itoa(a[i]))
+			a[i] = int(r[len(r)-1])-48
+		
+			c := i+1-len(r)
+			for i := 0; i < len(r)-1; i++ {
+				a[c+i] += int(r[i])-48
+			}
+		}
+	}
+	return a
+
+}}
+
+markov-chain: funct [a] [
+	o: copy[]
+	random/seed now
+	a: parse a none
+
+	append o copy/part (at a add -2 random length? a) 2
+	
+	loop 50 [
+		ap: a
+		m: copy []
+		while [ap: find/tail ap copy/part tail o -2] [append m ap/1]
+		append o random/only m
+	]
+	form o
+]
+
+view-images: does [
+	cd %/
+	f: readdt request-dir/keep image-suffix
+
+	{interface a, files f, image i, 
+	
+	f: next f 
+	while [not i: attempt [load f/1]][f: next f] 
+	a/size: i/size 
+	a/image: i 
+	show a
+	
+	next file
+	attempt to load file f/1 into image i
+	while that fails it go to the next file and try again
+	set the interface size to the image size
+	set the interface image to i
+	show fac
+	}
+	
+
+	;interface
+	;left and right keys scroll images
+	;left and right mouse buttons zoom in and out
+	
+	image-viewer: center-face layout [
+		origin 0 space 0 backcolor white across
+		a: image 800x600 load f/1 effect [aspect][a/size: a/size * 2 show a] [a/size: a/size / 2 show a]
+		key keycode [left] [f: back f while [not i: attempt [load f/1]][f: back f] a/size: i/size a/image: i show a]
+		key keycode [right] [f: next f while [not i: attempt [load f/1]][f: next f] a/size: i/size a/image: i show a]
+
+	]
+	view/new/options image-viewer [resize]
+
+]
+
+
+load-prev: func [
+	{bypasses invalid images}
+	f /local i
+][
+	f: back f 
+	while [not i: attempt [load f/1]][f: back f] 
+	i
+]
+
+load-next: func [
+	{bypasses invalid images}
+	f /local i
+][
+	f: next f 
+	while [not i: attempt [load f/1]][f: next f]
+	i
+]
+
+view-thumbnails: does [
+	th: 500 ;thumbnail height
+	t: []	;thumnails
+	cd %/
+	f: readdt request-dir/keep image-suffix
+	rsn f: skip f random length? f
+
+	make-thumbnail: funct [i] [
+		;s: i/size while [s/y > 300] [s: s / 2]
+		s: th * i/size / i/size/y
+		to-image layout/tight [origin 0 image i s effect [fit blur]]
+	]
+
+	layout-win: does [
+		clear win/pane
+		append win/pane key-face
+		w: 5 h: 5
+		forall t [
+			if tail? t [break]
+			if h + t/1/size/y  >= win/size/y [break]
+			if w + t/1/size/x  >= win/size/x [w: 5 h: h + 5 + t/1/size/y] 
+			;print as-pair w h
+			unless outside? win/size t/1/size + as-pair w h [
+				append win/pane make face [image: t/1 size: t/1/size offset: as-pair w h]
+			]
+			w: w + t/1/size/x + 5
+		]
+		show win
+	]
+
+	;make 20 thumbnails
+	loop 20 [i: attempt [load f/1] if i [append t make-thumbnail i] f: rotate f]
+
+	nr: 2
+
+	layout [
+		key-face: key keycode [right][layout-win]
+	]
+	
+	win: layout [
+		size 1220x610 
+		backcolor white 
+		timer rate 10 [
+			;make 2 thumbnails
+			if 200 > length? t [
+				i: attempt [load f/1] 
+				if i [append t make-thumbnail i] 
+				f: rotate f
+			]
+			;print [-2 + index? t]
+			remove/part head t -1 + index? t t: head t recycle
+			print [length? head t index? t]
+		]
+	]
+
+	view/new/options/offset win [resize] 0x400
+	layout-win
+
+]
+
+
+do-99-bottles: funct[
+	{potential improvements
+	read poem from network from 99bottles.net or something
+	parse paragraphs
+	apply some kind of diff to see the difference in the paragraphs
+	have rebol parse out the same parts. 
+	determine pattern between the different parts
+	see if rebol can determine the relationship between the disimilar parts
+	evolve code.
+	yeah, this isn't going to happen any time soon.
+	}
+] [
+
+	a: [
+		99 	;1
+		" bottles of beer" ;2
+		" on the wall"	;3
+		", " 	;4
+		".^/"	;5
+		"Take one down and pass it around, "	;6
+		98	;7
+		" bottle of beer"	;8
+		"no more"	;9
+		"No more"	;10
+		"Go to the store and buy some more, "	;11
+		99	;12
+	]
+
+	sequence: [
+		[1 2 3 4  1 2 5  6 7 2 3 5]	;97 times
+		[1 2 3 4  1 2 5  6 7 8 3 5]
+		[1 8 3 4  1 8 5  6 9 2 3 5]
+		[10 2 3 4  9 2 5  11 12 2 3 5]
+	]
+
+	drink: does [prin newline  a/1: a/1 - 1  a/7: a/7 - 1]
+	loop 97 [foreach n sequence/1 [prin pick a n] drink]	
+	foreach seq ++ sequence [foreach n seq [prin pick a n] drink]
+	;prin is print without newline
+	;++ on a series is equivalent to skip series 1 or next series
+]
+
+ctx-do-stack: context [
+
+	push: func [a] [append/only stack :a a]
+	stack: []
+	dup: does [last stack] 
+	over: does [pick tail stack -2]
+	drop: does [take/last stack do []] 		;do[] makes an unset value
+	pop: does [take/last stack]
+
+	do-stack: func [b][
+		until [
+			b: do/next b
+			unless unset? b/1 [push b/1]
+			empty? b: b/2
+		]
+		stack
+	]
+]
+
+do-it: func [
+	{Assigns the result of every expression to the name 'it. Makes it easier to write long expressions.
+	compare
+	f: make-face 'area  select select second get in f/feel 'engage [switch act] [key]
+	do-it [make-face 'area it/feel get in it 'engage second :it select it [switch act] select it [key]]
+	It may be longer, but it's easier to write in this incremental way. It's good for the shell.
+	}
+	b
+][
+	until [
+		set [it b] do/next b
+		empty? b
+	]
+	it
+]
+
+
+
+{editor2: funct [] [
+	bind*: func [a b][bind b a]
+	
+	bind-one-ring: func [a] [
+		bind/copy bind/copy bind/copy load/all a sv sv/focal-face  ctx-text
+	]
+	
+	;insert string into caret
+	
+	.: func [a] bind [ 
+		insert caret a
+		highlight-start: caret
+		caret: skip caret length? a
+		highlight-end: caret
+		show focal-face
+	] sv
+	
+	insert-caret: func [a] bind [ 
+		insert caret a
+		highlight-start: caret
+		caret: skip caret length? a
+		highlight-end: caret
+		show focal-face
+	] sv
+
+	select-para: func [/local a b] bind/copy [
+		;select paragraph
+		a: any [find/reverse back caret "^/" head caret]
+		b: any [find caret "^/" tail caret]
+		trim probe copy/part a b
+	] sv
+	
+	try-except: func [b exception][
+		either error? set/any 'err try b [
+			do exception
+		][
+			err	;not actually an error
+		]
+	]
+	
+	win: layout [
+		origin 0
+		fac: area 400x400 "^/^/" keycode [#"^M" #"^-"] [
+			ctx-text/insert-char face newline
+			show face
+			probe value
+			set/any 'result do bind/copy bind/copy load/all select-para sv sv/focal-face ;try-except [mold disarm err]
+			;do bind/copy bind/copy load/all select-para sv sv/focal-face
+			if not value? 'result [exit]
+			either string? result [. result][. mold result]
+		]
+				
+	]
+	
+	insert-event-func [
+		switch event/type [
+			alt-up [
+				if not all [sv/highlight-start sv/highlight-end][return event]
+				highlight: copy/part sv/highlight-start sv/highlight-end
+				set/any 'result do bind-one-ring highlight 
+				if not value? 'result [exit]
+				either string? result [insert-caret result][insert-caret mold result]
+			]
+			resize [
+				win/pane/1/size: win/size
+				show win/pane/1
+			]
+		]
+		event
+	]
+	
+	focus fac
+	f: win/pane
+	view/new/options win [resize]
+	de
+]
+
+
+
+try-except: func [b exception][
+	either error? set/any 'err try b [
+		do exception
+	][
+		err
+	]
+]}
+
+;because 'err is made as a global variable it can be used
+;in the exception block :)
+
+{
+	>> try-except [100 / 10] [probe disarm err]
+	== 10
+
+	>> try-except [100 / 0] [probe disarm err]
+	make object! [
+		code: 400
+		type: 'math
+		id: 'zero-divide
+		arg1: none
+		arg2: none
+		arg3: none
+		near: [100 / 0]
+		where: 'try-except
+	]
+	
+	;variable 'err can be referenced in the exception block
+}
+
+{
+
+sp: screen/pane
+
+
+
+
+t1: {f: request-file/keep
+
+view/new layout [image load f/1]}
+
+win: layout [
+
+	across backcolor white
+	f1: area 200x100 t1
+	f2: area 200x100 return
+	
+	area 200x100
+	area 200x100 return
+	
+	area 200x100
+	area 200x100 return
+	
+	area 200x100
+	area 200x100 
+	
+	key #"^e" [
+		set/any 'result do head sv/caret 
+		if not value? 'result [exit]
+		switch type? result reduce [
+			string! [f2/text: result]
+			image! [f2/image: result]
+		]
+		show f2
+	]
+	
+
+]
+view/new win
+f: win/pane
+de
+
+;NB area faces show their text string from its head no matter where the index is
+;so copy a string if you want to display it from its current position
+
+;everytime ^e is pressed it appends a copy of the text in texts in much the same way that the history does in the shell
+;^z and ^y go back and forwards between these texts
+;also can save history of texts when ^e is pressed
+
+
+	
+{	timer rate 1 [
+		o: copy []
+		foreach f win/pane [
+			append o f/text
+			save %editor.txt o
+		]
+	]}
+	
+
+;maybe it'll be eaier just to append every text to a block called history
+
+
+
+}
+
+
+;parse-math
+
+
+{demo-parse-math: does [
+
+	;parse-math2 doesn't interfere with paths. can it be used for all code??? 
+	;nope. there's the /local keyword
+
+	parse-math {
+		a: 2  s: 1  i: 1  o: []
+		while [4*a+i <= 25][
+			repend o [a+i 2*a+i 3*a+i 4*a+i]
+			s: s+(4*i)+(10*a)
+			i: 4*a+i
+			a: a+2
+		]
+		print s
+		print o
+	}
+
+	[
+		a: 2 s: 1 i: 1 o: []
+		while [4 * a + i <= 25] [
+			repend o [a + i 2 * a + i 3 * a + i 4 * a + i]
+			s: s + (4 * i) + (10 * a)
+			i: 4 * a + i
+			a: a + 2
+		]
+		print s
+		print o
+	]
+	
+	;a[i+1] a/(i+1)
+	;asdfads[i+1]
+	;a/(i+1)/(2+a)
+	
+]}
+
+{;cool bananas
+;old markov chain
+markov-chain2: funct [
+	"Generate impressively readable gibberish from a sample text"
+	txt
+][
+	chain: copy []
+	random/seed now
+
+	w: parse txt none ;words
+
+	;i: ["is" "a"] ;input
+	rw: at w random -2 + length? w ;random word
+	i: reduce [rw/1 rw/2] ;input
+	
+	insert w reduce [none none]
+
+	append chain i
+
+	loop 50 [
+		
+		wp: w ;words pointer
+		o: copy [] ;output
+		
+		;Find all occurences of these two words, and the word that comes after them
+		while [wp: find/tail wp i][append o wp/1]
+
+		;append a random one to the chain
+		ro: random/only o
+		append chain ro
+		
+		;make input again
+		i: reduce [second i ro]
+	]
+
+	chain
+]
+
+demo-markov-chain2: does [
+	do probe {
+		m: load/markup http://gutenberg.net.au/ebooks01/0100021h.html
+		remove-each m m [tag? m]
+		s: rejoin m
+		print markov-chain s
+	}
+]}
+
+eq: :equal?
+len: :length?
+cp: :copy
+mul: :multiply
+;each function
+
+;Holding on to anger is like grasping a hot coal with the intent of throwing it at someone else; you are the one who gets burnt
+
+use [font][
+
+	font: func [b][make face/font b]
+
+	lucinda-grande: font [name: "Lucinda Grande"]
+	verdana: font [name: "Verdana"]
+	tahoma: font [name: "Tahoma"]
+
+	lucinda-grande24: font [name: "Lucinda Grande" size: 24]
+	verdana24: font [name: "Verdana" size: 24]
+	tahoma24: font [name: "Tahoma" size: 24]
+	arial12: font [name: "Arial" size: 12]
+
+]
+
+random-video: funct [] [
+	view layout [
+		origin 0 box white font arial12 "Random Video" 200x200 [
+			call random/only f
+		][
+			f: read-video first request-dir/keep
+		]
+	]
+]
+
+{The universe moves. Reality is moving.}
+
+{One of the most effective measures against automated facial recognition is cigarette smoke. Todays algorithms aren't really good at figuring out constantly changing shapes with ill-defined borders.
+http://www.reddit.com/r/technology/comments/yc1o1/anonymous_vs_trapwire_we_must_at_all_costs_shut/}
+
+{
+;mp3 player words re-bol.com
+;all of these names have mp3_ before them except status
+
+initialize destroy openfile play status getstatus time pause resume setvolume 
+setmastervolume stop close seek getsonglength getposition 
+
+open free getstatus isplaying ispaused isstopped play stop pause resume
+
+playpause cf play getsonglength getelapsedtime getremainingtime seek 
+setvolume v vs volup voldown mute unmute 
+sb
+
+
+}
+
+{;20120814
+
+make-routines: func [libfile arg] [
+	lib: load/library libfile
+	o: copy []
+	foreach [a b] arg [
+		c: copy [return: [integer!]]
+		loop b [append/only c [integer!]]
+		repend o [
+			to-set-word a 'make 'routine! c 'lib to-string a
+		]
+	]
+]
+
+r: make-routines %libwmp3.dll [
+	Mp3_Initialize 0
+	Mp3_Pause 1 
+	Mp3_Resume 1 
+	Mp3_SetVolume 3 
+	Mp3_SetMasterVolume 3 
+	Mp3_Stop 1 
+	Mp3_Close 1 
+	;Mp3_Seek [Int Int Int "Timeformatsec" Struct "Ptime" Int "Seconds"]
+	Mp3_GetSongLength 1
+	Mp3_GetPosition 1
+]
+
+do r
+}
+
+;load different interfaces
+
+;fields
+;fields can interact, sometimes they become one field. One can become two, two becomes one.
+;That's it.
+
+;These are force fields.
+
+;higher frequency, continuity of space, density of space
+{matter particles have a high frequency which means that they do not have the discontinuous
+existence that particles with lower frequencies do. 
+
+Some kind of oscillation, or periodic warping of space
+
+spin space, translation or movement in space, torsion, }
+
+{savelength = h / p
+f = E / h
+
+speed of medium = E / p
+Is this constant?
+}
+
+{gif-player: funct [] [
+	cd %/c/
+	w: do rebol-dir/%gif-player.r
+	view/new/options w [resize]
+	do-events
+]}
+
+
+
+[
+
+;picture viewer with cool resize
+
+i: load request-file/keep/only 
+w: center-face layout [origin 0 backcolor black f: image i i/size / 4] 
+attempt [ref :ef]
+ef: insert-event-func [
+	switch event/type [resize [
+		if w/size = f/size [return event]
+		
+		yrat: w/size/y / f/size/y
+		xrat: w/size/x / f/size/x
+		rat: min xrat yrat
+		w/size: f/size: f/size * rat
+		
+		;w/size: f/size: fit-size f/size w/size 
+		show w
+	]]
+	event
+] 
+view/options w [resize]
+de
+
+]
+{20120802
+http://getabikini.com/photos/wp-content/uploads/2010/08/karen-leah-hedonism-ii-bikini-pics-photos.jpg
+http://imgur.com/egidq
+http://i.imgur.com/Aoftv.jpg
+http://imgur.com/a/q2LqG
+http://i.imgur.com/4cmgs.jpg}
+
+
+;QNX blackberry 10
+;A New Kind of Science by Stephen Wolfram 
+;go programming language
+;http://blog.golang.org/2012/07/go-videos-from-google-io-2012.html
+
+;books
+;stranger in a strange land
+;Fahrenheit 451
+
+
+{All the garbage with now-file and all that is just to prevent file name collisions. I can do that reasonably well by just inserting the date before all my filenames since I can be 
+reasonably sure that I can remember the filenames of the files that I've created that day. It is also useful for automation, but would save-thru, or rehex be more}
+
+
+;typematrix 2030 keyboard
+
+
+{
+bitcoin
+longest transaction chain
+block chain; block is a series of transactions}
+
+{money supply
+http://en.wikipedia.org/wiki/Money_supply
+Fractional Lending
+money as debt video
+}
+
+
+{Henry Kissinger 
+"Who controls the food supply controls the people; who controls the energy can control whole continents; who controls money can control the world."
+}
+
+
+
+{Yale University Courses
+http://www.youtube.com/user/YaleCourses
+
+19. Quantum Mechanics I: The key experiments and wave-particle duality 
+http://www.youtube.com/watch?v=uK2eFv7ne_Q&feature=relmfu
+
+11. Weakness of the Will and Procrastination 
+http://www.youtube.com/watch?v=xp3m7e9T72k&list=UU4EY_qnSeAP1xGsh61eOoJA&index=16&feature=plpp_video
+circumstance is a major contributor to behaviour
+
+}
+
+{Rob Pike: Notes on Programming in C 1989
+http://www.lysator.liu.se/c/pikestyle.html
+"Data structures, not algorithms, are central to programming." - Brooks p102}
+
+{The Go Programming Language,
+or: Why all C-like languages except one suck.
+http://www.syntax-k.de/projekte/go-review/}
+
+{Brutus, the pet grizzly bear 
+http://imgur.com/a/VQsOO
+http://www.reddit.com/r/pics/comments/xfx36/family_raised_grizzly_bear/
+http://www.youtube.com/watch?v=CVMBdi4dgME}
+
+
+;quantum mechanics means we don't know what it'll do
+
+{;music
+;max-a-million wisdom remix mp4 "a good year ost"
+;venture bros, jg thirlwell, tuff (intro theme)
+;astor piazzolla
+;tous les matins du monde 
+;stan getz bossa nova
+
+}
+;quantum field theory
+;they're absorbed and emitted in one go because they're the smallest unit of energy
+
+.: func [a] [
+	write clipboard:// mold :a
+	probe :a
+]
+
+{;changing the word type in a function interface merely stops you from  having to do it 
+;at the time of composition. That's all. It seems. :\
+
+.: func [:a] [
+	write clipboard:// get a
+	probe get a
+]
+
+.: func [a] [probe get a]
+
+test: does [reduce [2 'append 'or 'not 'to 'append]]
+test: does [[2 append or not to append]]
+
+gi: func [a b] [get in a b]}
+
+;macroscopic world is particulate
+;microscopic world is waves
+
+;mass and particulate nature of matter arises from equations of quantum mechanics
+http://www.youtube.com/watch?feature=endscreen&v=uK2eFv7ne_Q&NR=1
+
+;start with waves
+
+;open mode, closed mode
+;create a plan, implement it, feedback
+;open mode 1.5 hours
+
+
+{In my mind there's two kinds of work; inspired work and laborious work
+They're both essential. 
+inspired is passionate
+laborious is review, and editing
+This could also be called writing and editing, with the pretext that writing is a passionate undertaking.
+
+Writing should be passionate and should be followed by editing.
+}
+
+
+http://en.wikipedia.org/wiki/Recursion_%28computer_science%29#Factorial
+;recursion
+
+http://sgworks.com/
+;sks modernization project, sks bullpup
+
+;bootloader easybcd
+
+;cd %/c/users/kostoglotov/
+
+{I've never pirated a movie, but after sitting through THIRTEEN MINUTES of commercials in order to get to the main menu of the DVD I just rented, I'm about to start . . .
+
+Don't do it. Once you start pirating, there's no going back. Next thing you know, you're raping nuns and eating babies while snorting coke off of a crucifix and driving the wrong way on the freeway in a school bus full of koalas.
+
+Please, think of the koalas.
+
+}
+
+http://www.ted.com/talks/todd_humphreys_how_to_fool_a_gps.html
+
+http://imslp.org/wiki/Piano_Concerto_No.2,_Op.18_%28Rachmaninoff,_Sergei%29
+;rach 2 sheet music
+
+{20120723
+
+English is a prefix language
+Math is infix
+Typing is postfix
+
+So if you think of ideas as you type you might appreciate a postfix language
+If you want readability then you need prefix for english and infix for math
+
+
+
+p^3q^6 has 28 divisors
+3 + 1 6 + 1 *
+http://math.stackexchange.com/questions/174055/finding-the-divisors-of-a-number
+
+
+Switch two variables without an extra variable
+a=a+b
+b=a-b
+a=a-b
+http://www.codinghorror.com/blog/2007/02/why-cant-programmers-program.html
+}
+
+;implement all datatypes in go
+;projecteuler
+;see mike code
+
+http://www.youtube.com/watch?v=83HdcCSIKgc&feature=plcp
+;currency reflects the value of a country
+
+{gif-player: funct [] [
+	g: load first request-file
+	draw-gif: does [
+		draw b/image [image g/1]
+		g: rotate g
+		if head? g [draw b/image compose [image (first head g)]]
+		show b
+	]
+	view w: center-face layout [
+		origin 0
+		b: image g/1 [
+			g: load first request-file 
+			b/size: b/image/size: b/parent-face/size: g/1/size 
+			show b/parent-face
+		]
+		timer -20x-20 rate 15 [draw-gif]			
+	]
+]}
+
+;The concept of a point is physically meaningless, 
+;particles are volumes
+
+{The acceleration of a body due to gravity is given by the formula a = Gm/r2
+Where m is the mass of the other particle. 
+
+How long will it take an astronaut who is reentering the earth's atmosphere to get to the ground if you assume he's at rest and disregard the friction due to air.
+
+How does the acceleration change as the distance between the centers of the two particles decreases?
+
+The rate of change of acceleration with respect to the distance of separation is
+
+da/dr = -2Gm 1/r3
+
+
+}
+
+{On the nature of energy
+Energy gets trapped in stable structures 
+the structures determine
+
+cancel out
+
+}
+
+http://www.reddit.com/r/Physics/comments/wgqki/lets_get_this_right_the_higgs_boson_does_not_give/
+;Rant about strong force - good
+
+{now seems to me that an object with a momentum of inertia of a million like a million tons ship going at 1 m/s will be harder to brake than a motorbike of 100 kg at a speed of 100 m/s that has an inertia of 10000,their kinetic energy will be the same but the inertia will be much bigger in the case of the ship
+	Nonetheless, if you apply the same stopping force to each, they will come to rest in the same distance and require the same work to stop. (But the bigger object will take more time to stop.)
+http://www.physicsforums.com/showthread.php?t=97767
+}
+
+;The concept of a point is physically meaningless, 
+;particles are volumes
+
+
+;virtual desktop manager - hit windows button to cycle through windows. All that would be needed would be to maximize only the windows you want.
+
+;I want to donate to artists whose stuff I've downloaded
+
+;"a watched pot never boils."
+
+;Capslock::Ctrl, autohotkey
+
+;foobar2000 can copy music to an iphone 
+
+http://news.domain.com.au/photogallery/domain/shipping-container-houses-20110216-1avwa.html
+;shipping container house
+
+http://www.youtube.com/watch?v=QJFkQIOzxn8
+;shipping containers- new house design at CTV 
+;Everyone is either building small castles or regular ugly houses which have no architectural merit.
+
+
+
+stopwatch: timer: does [
+	view/new do rebdir/%timer.r
+	start-stop
+	do-events
+]
+
+
+
+{dw: funct [
+	{This function replaces all hyphens in words with dots to facilitate typing rebol code
+	Keyboard shortcuts ^H for delete and ^M for enter also help to minimize right hand movement during typing.
+	stands for dehyphenate words
+	Doesn't use alias because of mysterious bugs
+	}
+] [
+	w: get-values
+	remove-each w w [not find form w #"-"]
+	o: copy []
+	foreach w w [
+		nw: replace/all form w "-" "." 
+		if all [
+			1 <> length? form w
+			not empty? nw 
+		] [repend o [to-lit-word nw w]]
+	]
+	foreach [a b] o [set a get b]
+	;set to-lit-word nw get w
+]}
+
+dehyphenate: dw: funct [
+	{This function replaces all hyphens in words with dots to facilitate typing rebol code
+	;Keyboard shortcuts ^H for delete and ^M for enter also help to minimize right hand movement during typing.
+	;dehyphenate.words
+	Doesn't use alias because of mysterious bugs
+	}
+] [
+	w: get-values
+	remove-each w w [not find form w #"-"]
+	o: copy []
+	foreach w w [
+		nw: replace/all form w "-" "." 
+		if not empty? nw [repend o [to-lit-word nw w]]
+	]
+	foreach [a b] o [set a get b]
+	;set to-lit-word nw get w
+]
+
+;make-icon: func [face] [;to-image face]
+
+
+{Capture resize event by window face, instead of screen face
+w: layout [backcolor black origin 0 f: box]
+w/feel: make object! [
+    redraw: none
+    detect: func [face event][
+		if event/type = 'resize [
+			face/pane/1/size: face/size
+			show face
+		]
+        either all [
+            event/type = 'key 
+            face: find-key-face face event/key
+        ] [
+            if get in face 'action [do-face face event/key] 
+            none
+        ] [
+            event
+        ]
+    ]
+    over: none
+    engage: none
+]
+view/options w [resize]
+
+}
+
+
+;http://www.codinghorror.com/blog/2012/06/how-to-talk-to-human-beings.html
+;repeat what they said, label their emotion
+;let them work things out themselves
+
+
+;Routers
+;http://www.codinghorror.com/blog/2012/06/because-everyone-still-needs-a-router.html
+
+;Logitech Ultrathin iPad Keyboard Cover: Review.mp4
+;pandabox 
+;$74 Android 4.0 MK802 Mini PC unboxing.mp4
+
+;clamcase
+;http://clamcase.com/clamcase-ipad-2-keyboard-case-black.html/
+
+{>> factorize 456465472
+== [2 2 2 2 2 2 83 85931]}
+
+{determining the number of divisors of a number
+the unique prime factors of 456465472 are [2 83 85931]
+the number is the product of these prime factors
+they meet eachother, 2 by 83 is the same as 83 by 2	
+}
+
+
+{
+make-routines lib [
+	mp3_initialize 0
+	mp3_pause 1 
+	mp3_resume 1 
+	mp3_setvolume 3 ;left right vols
+	mp3_setmastervolume 3 
+	mp3_stop 1 
+	mp3_close 1 
+	mp3_seek [int int int "timeformatsec" struct "ptime" int "seconds"]
+	mp3_getsonglength 1
+	mp3_getposition 1
+]
+}
+
+;to do buy thermals for eddie
+
+;***
+
+;anatomy and physiology
+;http://www.getbodysmart.com
+
+{TO DO
+Ring Monash Biomedical Science
+9905 1212
+03 9905 8635
+
+When trying to apply for master of medical radiations I get the error message
+
+No courses found. Make sure that:
+
+    The Course Code is correct
+    The spelling of any Course Title words is correct
+    The course is available for your Citizenship Type 
+
+To check any details, go to Course Finder (opens in a new window). 
+
+How can I apply for this course?}
+
+{Syria shot down a Turkish plane that went 1 km into their air space. 20120623}
+
+{
+
+{My father long ago told me that Einstein and Bohr would correspond through letters, and one of them asked the other to solve the following puzzle. 
+I don't remember the solution or which of the two had the correct answer.
+
+You have two containers. One contains liquid A and the other contains liquid B. 
+Using a ladle, you scoop one ladle of liquid A up and pour it into liquid B. 
+Then, using the same ladle again, you pour one scoop of liquid B into liquid A.
+Which liquid contains more of the other? Is there more A in B, or more B in A?
+}
+
+
+A and B are both liquids. c and d are numbers.
+
+d is a ladel full. c a container full (originally)
+
+A container full of liquid A and a container full of liquid B.
+
+cA
+
+cB
+
+Take a ladel of the first container and put it in the second.
+
+cA-dA
+
+cB+dA - mixture 2
+
+Now take a ladel of the second container and put it in the first. 
+D is the amount in a ladel so make it one by dividing it essentially by itself - (cB+dA)/(c+d) then multiply it by d to get a ladel full: d(cB+dA)/(c+d). 
+Take it away from container 2 and add it to container 1.
+
+cA-dA +d(cB+dA)/(c+d)
+
+cB+dA -d(cB+dA)/(c+d)
+
+Just as a helpful explanation;
+A and B are both liquids so if L is liquid you can say, d(cL+dL)/(c+d) = dL(c+d)/(c+d) = dL, which is a ladel full of liquid.
+B and A are just in there to separate the variables.
+
+If these two expressions are simplified you get this.
+
+(ccA+cdB)/(c+d)
+
+(ccB+cdA)/(c+d)
+
+cc/(c+d) is the larger amount of liquid and cd/(c+d) of the smaller amount of liquid in the containers where d is the amount in a ladel and c is the original amount in a container.
+
+}
+
+{;Perfect Coffee for the impatient
+
+Coffee requires water that's 93 degrees celsius.
+So how much tap water and boiling water do I mix to get that?
+
+Get Absolute temperatures
+
+25 degree celsius (C) tap water is 298 kelvin (K).
+93 C is 366 K, and 
+100 C is 373 K
+
+If a and b are masses of water at different temperatures
+
+366 (a + b) = 373 a + 298 b
+a/b = 68 / 7 = 9.71428571428571
+
+So, the ratio of water (by mass) at 100 degrees to add to water at 25 degrees is about 10 to 1.
+
+If you put tap water at 20 degrees C then the ratio comes out at 10.4 to 1.
+
+So 10 to 1 is a good ratio for tap water between 20 to 25 degrees celsius.
+
+}
+
+
+
+;getf  - get file
+
+process: funct [blk][
+	f: now-file
+	write f rejoin [
+		"rebol[]" newline
+		"delete " mold f newline
+		"do " mold blk
+	]
+	launch f
+]
+
+;on screen keyboard with wireless mouse
+
+;VIA Technologies outs $49 APC Android barebones, nods towards Raspberry Pi
+;http://www.engadget.com/2012/05/22/via-technologies-outs-49-apc-android-barebones/
+
+{small motherboard with 4 sata, 1 hdmi, 1 usb for lenovo remote n5902}
+
+;Lenovo Multimedia Remote With backlit keyboard N5902 Keyboard - wireless  
+;$46 
+;http://www.google.com/products/catalog?oe=utf-8&q=wireless+mouse+with+a+keyboard+on+it&cid=7740114087034002112&ei=pIbiT-r5LZPVkAXem_GLBQ&ved=0CE0QrhI
+;googled "wireless mouse with a keyboard on it"
+
+{clip: func [a] [
+	write clipboard:// a
+	a
+]}
+
+; === isprime c code
+{//c code
+
+#include <math.h>
+#include <windows.h> 
+#define DLL_EXPORT __declspec(dllexport)  
+
+DLL_EXPORT int isprime (int n) {
+	//1 is yes, 0 is no
+	if (n == 2) {return (1);}
+	else if ((n <= 1) || (n % 2 == 0)) {return (0);}
+	else {
+		int i;
+		int	lim = sqrt (n);
+		for (i = 3; i < lim; i = i + 2) {
+			if (n % i == 0) {
+				return  (0);
+			}
+		}
+		return (1);
+	}
+	
+}	
+
+/* compilation
+
+cd c:\tcc
+tcc -shared prime.c
+*/
+}
+
+{;Rebol external library access
+
+prime.dll: load/library %/c/tcc/prime.dll 
+isprime: make routine! [
+	return: [integer!]
+	n [integer!] 
+] prime.dll "isprime"
+
+
+{>> dt [for n 1 100'000 1 [isprime n]]
+== 0:00:00.3
+>> dt [for n 1 100'000 1 [prime? n]]
+== 0:00:04.61}
+}
+
+;enslave-lib c.f. free lib, emanicipate, incarcerate library, heehee.
+
+;map trick
+;append [key [value]]
+;this way you can select by key without selecting by value :)
+
+;Schwinn Discover Men's Hybrid Bike (700C Wheels)
+;amazon.com
+
+{http://www.dfp.com.au/job-board/1220
+Administration Temps!!! Roles to commence immediately!}
+
+;job
+;qld gov au website search for job at herston
+;dfp website - alex
+
+;(
+flatten: funct [b "block of blocks"][o: copy [] foreach b b [append o b]]
+
+{Backcasting
+http://au.answers.yahoo.com/question/answerBest;_ylt=AlM4M4QU222f0EdBcMdrmiQAAAAA;_ylv=3?qid=20120618151633AAGF7H4&kid=4AE8QStDaa
+Given past data, how accurately do climate models predict the present temperature?
+http://www.sjsu.edu/faculty/watkins/backcasting.htm
+}
+
+
+scroll-text-list: func [
+	{scroll a text-list by some lines}
+	tl lines /local tmp
+] [
+	tmp: 1 - tl/lc + length? tl/data
+	tl/sn: max 0 min tmp lines + tl/sn
+	tl/sld/data: max 0.0 min 1.0 tl/sn / tmp
+	show tl
+]
+
+keyboard-sniffer: ks: funct[] [
+	{see keyboard character codes}
+	attempt [ref :ef]
+	ef: insert-event-func func [f e][
+		if e/type = 'move [prin "move " return e]
+	
+		print [newline e/1 e/2 e/3 e/4 e/5 e/6 e/8]
+		print dump-face e/7
+		
+		;if e/type = 'close [remove-event-func :ef]
+		e
+	]
+	view/new layout [f: area]
+	do [focus f]
+	do-events
+]
+
+;del #"^~"
+
+;principle of least surprise
+
+;music
+;Venetian gondoliers song
+;Rachmaninov - Intermezzo Adagio.mp3	
+;dust brothers - space monkeys
+
+;context protects namespace
+;ctx-mp3: context load %mp3.r
+
+;Mazda Titan is the name of one of those tiny utility vehicles in Japan.
+
+	{Import Japanese Car
+import tax for Japanese migrants on first car is about $1000 according to Denis
+also, periodic Japanese road worthy is so hard that they sell second hand cars
+for a song}
+	;google {buy second hand japanese vehicles}
+
+;honda element
+
+;to do jailbreak iphone 
+
+;seems to work
+{each: funct [
+	{Each is a shorter foreach function with output capability
+	;each n [emit n * f]
+	;o: copy [] foreach n n [append o n * f]}
+
+	'w b
+] [
+	o: copy []
+	keep: func [a /only][either only [append/only o a][append o a]]
+	b: bind b 'keep
+	do reduce ['foreach w get w b]
+]}
+
+each: funct [{Takes only one variable. Has output variable o} 'w b] [
+	o: copy []
+	do reduce ['foreach w get w b]
+]
+
+;===files
+
+{use [k] [
+	kostoglotov: kostoglotov-dir: k: %/c/users/kostoglotov/
+	desk: desktop: desktop-dir: k/%desktop/
+	downloads-dir: k/%downloads/
+	dropbox: dropbox-dir: k/%dropbox/ 
+	rebdir: rebol-dir: k/%dropbox/rebol/
+]}
+
+usr: %/c/users/kostoglotov/
+desk: usr/%desktop/
+dropbox: usr/%dropbox/
+rebdir: dropbox/%rebol/
+
+;dir function searches
+;dir desk
+;dir box
+;search f 
+
+{clean-paths: func [dir b] [
+	in-dir dir [
+		o: copy [] 
+		foreach b b [append o clean-path b]
+	]
+]
+
+user-dirs: clean-paths %/c/users/kostoglotov/ [
+	%/e/ %/f/ %/c/users/public/ %desktop/ %downloads/ %dropbox/
+]}
+
+
+
+
+;user-dirs
+
+{kost/%desktop/
+kost/%downloads/
+kost/%dropbox/
+kost/%dropbox/rebol/}
+
+{cd %/ 
+o: copy [] 
+foreach d read wd [attempt [index-files d/%music/ o]]
+rd}
+
+
+
+
+
+{video: does [readdt [%videos/ %/e/videos/ %/f/videos/] video-suffix]
+images: does [readdt [%images/ %/e/images/ %/f/images/] image-suffix]
+music: does [readdt [%music/ %/c/music/ %/e/music/ %/f/music/] music-suffix]}
+
+
+
+
+
+
+
+
+;nasal spray tish tramazoline hydrochloride active ingredient
+
+{search "something type:video"
+
+f: read-files
+a: audio-of f
+
+readdt}
+
+;these small functions don't get used much
+;dir*?: func [f][eq? last f #"/"]
+;blockize: mkblk: func [a][append copy [] a] ;single or block arguments
+
+
+{make-suffix: func [s][each s [emit join %. s]]
+readt: funct [d s][f: read d filter-by-suffix f s]
+
+read-images: func [d][readdt d image-suffix]
+read-music: func [d][readdt d music-suffix]
+read-video: func [d][readdt d video-suffix]
+read-dirs: func [d][remove-each f read d [neq? last f #"/"]]
+
+video-suffix: [
+	%.avi %.mpg %.mpeg %.divx %.mkv
+	%.mov %.ogg %.rmvb %.rm %.rmv %.mp4 ;mp4 can be audio or video
+	%.m4v %.ogm %.m2v %.wmv %.flv
+]
+music-suffix: 	[%.mp3 %.aac %.wma %.m4a]
+image-suffix: 	[%.jpg %.jpeg %.png %.bmp]		
+text-suffix:  	[%.txt %.r %.c %.h %.r3 %.reds %.red]}
+
+{;remove things without given suffix
+filter-suffix: funct [f s][remove-each f f: copy f [not find s suffix? f] f]
+video-of: func [a][filter-suffix a video-suffix]
+music-of: func [a][filter-suffix a music-suffix]
+images-of: func [a][filter-suffix a image-suffix] }
+
+
+
+
+;in-dir: funct [dir blk][wd: what-dir change-dir dir do blk change-dir wd]}
+;callr: funct [b][call first random b]
+
+{cd kost
+rd desktop
+rd downloads
+rd dropbox
+rd dropbox/rebol/}
+
+;make-suffix: func [s [block!]][each s [append o to-file join "." s]]
+{>> make-suffix [mp3 avi] == [%.mp3 %.avi]}
+
+
+
+;traverse
+
+;favs
+;pigeons flv
+;still alive
+
+;to do - implement leap tech with left and right mouse buttons.
+;doable
+
+{f: read-files
+search f "something type:video"}
+
+{It's obvious that you should work in the highest level language that you can
+and then optimise after you've prototyped your idea}
+
+{CAFE BLACK FOREST HIGHGATE HILQLD}
+
+fit-size: fit-into: fit-inside: funct [
+	{Fit size 1 into size 2 while maintaining aspect ratio}
+	a b "size to fit"
+] [
+	a * first minimum-of reduce [
+		b/x / a/x	b/y / a/y
+	]
+]
+
+resize-width: fit-width: funct [
+	{Fit size a inside the width b}
+	a b
+] [
+	a / (a/x / b)
+]
+
+resize-height: fit-height: funct [
+	{Fit size a inside the width b}
+	a b
+] [
+	a / (a/y / b)
+]
+
+fit-image: resize-image: fit: fiti: resizei: func [
+	i "interface" 
+	/local sz mx
+] [
+	sz: i/image/size
+	mx: i/parent-face/size
+	
+	if inside? mx sz [return none]
+	i/size: aspect sz mx	
+	show i
+]
+
+
+wide?: func [p [pair!]] [p/x > p/y]
+
+{Hello this is [now]
+I would like to check [2 + 3
+4 + 5]
+Hahahaha how 
+about that}
+
+{append?: func [a b /only][
+	if not b [return none]
+	either only [
+		append/only a b
+	][
+		append a b
+	]
+]}
+
+;always use parse/all, parse all chars including whitespace
+
+do-text: func [
+	{do-text "hello [3 + 4]" => "hello [7]}
+	s
+][
+	o: copy []
+	parse/all s [
+		any [
+			copy a to "[" ;need multi brackets, bracket: charset "[]"
+			copy b thru "]"
+			(if a [append o a] if b [append/only o load b])
+		]
+		copy c to end (if c [append o c])
+	]
+	. a: o
+	o: copy []
+	foreach a a [
+		either block? a [
+			either rla: all [
+				attempt [load/all a]
+				attempt [reduce load/all a]
+			][
+				append/only o mold rla
+			][
+				append o "???"
+			]
+		] [
+			append o a
+		]
+	]
+	. rejoin o
+]
+
+append-key-code: insert-key-code: funct [face kc] [
+	;engage has a switch statement
+	a: second get in face/feel 'engage
+	a: select select :a [switch act] [key]
+	append a bind/copy kc a/2
+]
+
+;cool but useless and complicating
+{can: :attempt
+cant: func [b][not can b]
+able-to: :can
+not-able-to: :cant}
+
+;wow this is pretty good
+test-area: does [
+	view layout [
+		f: area [
+			r: attempt [do-text face/text]
+			if r [face/text: r]
+			focus face
+		]
+		do [
+			append-key-code f [
+				if event/key = #"]" [
+					do in face 'action face event
+				]
+			]
+			focus f
+		]
+	]
+	de
+]
+
+{append-key-code: funct [face kc] [
+	;engage has a switch statement
+	a: second get in face/feel 'engage
+	a: select select :a [switch act] [key]
+	append a bind/copy kc a/2
+]
+
+;wow this is pretty good
+test-area: does [
+	view layout [
+		f: area [
+			r: aall [
+				attempt [load/all f/text] ;loadable
+				attempt [reduce load/all f/text]
+			]
+			if r [
+				r: mold . r
+				remove r
+				remove back tail r
+				if #" " <> last r [append r " "]
+				f/text: r 
+				focus f
+			]
+		]
+		do [
+			. append-key-code f [
+				if event/key = #" " [
+					do in face 'action face event
+				]
+			]
+			focus f
+		]
+	]
+	de
+]}
+
+;to do
+;get back eddie's htc phone with the facebook button that I used in thailand
+
+;lenovo 14 inch
+;$420 online according to google shopping
+
+{Iphone 
+What do I use on my phone? I use 
+the camera, reminders, maps, notes, clock, facebook, email, sms, music player, 
+the sound recorder
+I hate itunes and moving files to and from the phone,
+the weight of it, the fragility of it}
+
+{Basically, give me a phone with an equivalent camera that is not fragile
+and has easier file transfer and I'll be happy - maybe the htc desire one s?
+hard to say. perhaps the next htc wildfire}
+
+
+{context [
+	{Make filename accurate to the millisecond. Prevent collisions with other filenames}
+	set 'now-file: does [
+	
+		;prevent time collision
+		nt: now/time/precise  
+		if nt = ot [
+			nt: nt + .001 
+			ot: nt
+		]
+		to-file rejoin [
+			w now/year 4
+			w now/month 2
+			w now/day 2
+			"-"	
+			do [
+				a: rejoin parse form nt ":."
+				append-till form a "0" 9
+			]
+		]
+	]
+	;old time
+	ot: now/time/precise
+	;widen, insert zeros
+	w: func [a b] [insert-till form a "0" b]	
+	nt: a: none
+]}
+
+now-dir: does [dirize now-file]
+
+{now-dir: funct [
+	{Make a dir in root directory which is the current date in descending order e.g. 19970323}
+] [
+	d: rejoin [
+		insert-till mold now/year "0" 4
+		insert-till mold now/month "0" 2
+		insert-till mold now/day "0" 2
+	]
+	d: make-dir join %/c/ dirize to-file d
+	change-dir d
+]}
+
+{rmit melbourne
+master of medical radiations (medical imaging)
+2 years + 1 year npdp
+provisional statement of accreditation
+
+university of sydney
+masters of diagnostic radiography
+2 years + 1 year npdp
+provisional statement of accreditation
+
+university of sydney
+masters of radiation therapy
+2 years + 1 year npdp
+provisional statement of accreditation
+
+monash university (melbourne)
+master of radiation therapy
+2 years (from 2012)
+validated statement of accreditation}
+
+
+
+;wavelength and momentum are inversely proportional
+;wavelength = h / momentum
+;momentum = h / wavelength
+
+;could gravity be so large and so small that it just can't be absorbed in a quantum way?
+
+;to absorb light you need the thing to be the same length as your wave
+
+
+;by particle characteristic they just mean certainty of position
+
+;if your scale is large enough then the wave looks like a particle :)
+;if the scale is small then you can see the waves
+
+;Matter Wave - De Broglie Wavelength 
+;http://www.youtube.com/watch?v=lDYMuzo40LU
+;wave if wavelength >> scale at which you're probing the system
+;particle if wavelength << scale 
+;wavelength = plancks-constant / momentum
+
+plancks-constant: 6.626068e-34 ;m2 kg / s
+
+{
+h: plancks-constant
+h / 80 / 10 ;me running at 10m/s
+;my wavelength is == 8.282585E-37 meters, quite small. Because of that, my probabilistic qualities
+;are not very present. I am all here. My position at this scale is quite certain?
+
+w << scale -> particle, very certain position
+
+}
+
+;"If an argument lasts more than five minutes then both sides are wrong" - Neil DeGrasse Tyson
+
+;displacement doesn't exist
+;you have to take everything in comparison to a membrane that translates energy
+;at the speed of light
+
+
+
+;Basically everything has to be compared to 
+
+;there's a symmetry between emission and absorption
+;if time goes backwards n
+
+;The strong force, weak force, and ultraweak force, gravity
+;now does gravity
+
+
+
+{In the same way that a photon and an electron can become one. an atom and an
+electron can also become one. In a hydrogen atom, the }
+
+;relativistic quantum mechanics
+;or calculating potential interactions
+
+
+
+;a photon travelling through space is just potential energy
+
+;the quantum wave doesn't really exist. Only interactions exist
+;we're trying to predict what happens
+
+;is quantum mechanics strange because you're messing with potential energy??
+
+;wave potential
+
+;relativistic quantum mechanics
+
+;===
+;interactions are real. things by themselves are merely potential
+
+;light quanta are potential. as are for example, atoms
+;interactions are real, but waves are potential
+
+;nobody knows what's going to happen
+;but wave potentials can be mapped out and chances can be calculated
+
+;so that means that a photon, a wave of energy potential
+
+;that's true because you can't say that a photon has kinetic energy
+;because it isn't anything in itself.  It isn't anything but potential. to be transformed into kinetic energy
+
+;so that means that a photon moving from the sun to earth is just potential energy
+;and the potential energy can radiate in any way that it wants
+;in fact the potential wave
+
+;emission spectrum of hydrogen - development of current atomic theory
+;http://chemed.chem.purdue.edu/genchem/topicreview/bp/ch6/bohr.html
+
+;hydrogen energy levels
+;test: func [n1 n2][(1 / (n1 ** 2)) - (1 / (n2 ** 2))]
+
+;when a quantum wave
+
+{;The gravity of a star doesn't propagate because there is no disturbance. 
+;It is not moving. It is static.  Small particles have mass and they move around
+and consequently they would emit gravitational waves. But these would be so small
+and weak as to be very difficult to detect.
+
+If a star was wobbling then it would emit gravitational waves that would be detectable.
+
+Can one absorb the gravitational wave from a star?
+
+How are radiowaves absorbed
+
+The frequency of a star gravitational wave would be very slow
+}
+
+;natural resonance frequency
+;electrons have a resonance frequency
+
+;the trajectory of photons cannot be determined
+
+;sum the multiple histories of a photon
+
+;how else can waves permeating through space interact in way that transmits force?
+;except probabilistically?
+
+;all the interactions would happen slower and they would take less distance.
+;in special relativity
+
+;a wavefunction is potential. we are looking potential in the face
+;it is natural that it is probabilistic
+
+
+;communication
+;if a problem can be divided then a group of people can solve 
+;the number of pieces faster
+;communication
+
+;everything is in motion
+;you're sitting here but you're absorbing and emanating light
+;how else can waves be absorbed?
+
+;can't predict what's going to happen
+
+;nature is unpredictable
+
+;reality communicates with light
+
+;absorb wave
+
+
+;halt
+
+{hilight-caret: func [
+	f "face" 
+	e "event"
+] bind/copy [
+	
+	alias 'focal-face "ff"
+	alias 'highlight-start "hs"
+	alias 'highlight-end "he"
+	alias 'caret "c"
+	
+	delim: charset {^-^/}
+	either eq? f ff [unlight-text] [focus/no-show f]
+	c: offset-to-caret f e/offset
+	if hs or he [return none]
+	hs: find/reverse/tail c delim or head c
+	he: find c delim or tail c
+	trim copy/part hs he
+	
+] rebol/view
+
+sv: system/view
+alias in sv 'focal-face "ff"
+alias in sv 'highlight-start "hs"
+alias in sv 'highlight-end "he"
+alias in sv 'caret "c"
+}
+;indent: does [
+
+
+{stylize/master [
+	;spacebar keystroke fires action
+	area*: area with [
+		s1: s2: none
+		init: append copy init [
+			;insert-key-func
+			.
+			s1: {key [edit-text face event get in face 'action]} 
+			s2: trim/auto {
+				key [
+					edit-text face event get in face 'action 
+					if event/key = #" " [do in face 'action face event]
+				]
+			}
+			feel: do bindvt load/all replace mold feel s1 s2
+		]
+	]
+]}
+
+
+make-unix-date: Date2Int: func [d /local c][
+    c: 1-Jan-1970/0:00
+    d - c * 86400 + to-integer d/time - c/time
+]
+
+
+{now-file: funct [][
+	widen: func [s l] [insert-till s "0" l]
+	nt: rejoin parse form now/time/precise ":."
+	also
+	to-file rejoin [
+		now/year 
+		widen now/month 2
+		widen now/day 2
+		widen nt 9
+	]
+]}
+
+{;pointless. just create a directory and then use now-file and access the files by index
+save-numbered-file: snf: func [arg] [
+	to-file insert-till  "0" 4 
+	save arg
+]}
+
+;cs: func [f s][call first search f s]
+
+;math height, width
+;interface height, width
+
+;graph: func [s spec][
+
+
+	
+
+{TO DO
+graph size/face spec
+this way if a size is entered it'll just make a draw block
+however if a face is entered then it can set the effect block to draw axis and then the spec}
+
+{>> test: funct [a][set [b c] [4 3]]
+>> test 3
+== [4 3]
+>> b
+== 4}
+
+{;minimize typing of hyphens
+dehyphenate-words: dw: funct [] [
+	w: words-of system/words
+	foreach w w [
+		if find fw: form w #"-" [
+			attempt [ set to-lit-word replace/all fw "-" "" get w]
+			attempt [ set to-lit-word replace/all fw "-" "" get w]
+		]
+	]
+]}
+
+;to do
+;make dehyphenated-words object 
+;so these words can be removed 
+
+word-browser: does [
+	do %/C/Users/Kostoglotov/AppData/Roaming/rebol/public/www.rebol.com/view/tools/word-browser.r
+]
+
+stylize*: stylize-with: func [a b c][
+	stylize/master reduce [to-set-word a b 'with c]
+]
+
+;[10][23][56][78][98][78][95][45][65][78][98]
+
+{stylize-with 'mp3-face 'sensor [
+	rate: 3
+	size: 400x400
+]}
+
+;http://www.rebol.com/docs/view-face-content.html#section-5
+
+;powertoys calculator doesn't work on windows 7 :(
+
+;grid
+;[grid 20x20 0x0 200.200.200]
+;how to use the grid effect
+
+;imagining particles hinders the evolution of understanding
+;they are quantum waves. Don't say particle.
+
+;collapse vs absorption/emission
+;collapse reorganizes or redirects the wavefunction designated by a unitary transformation matrix. 
+;http://www.quantummatter.com/members/prowave_interpretation_of_q.html
+
+{As the quanta propagate and interact with the macroworld, two separate types of interactions occur. 
+The first is defined as a partial interaction: This interaction reorganizes or redirects the wavefunction designated by a unitary transformation matrix. 
+Examples of such are beamsplitters and magnetic fields. The other type of interaction is defined as a complete interaction: 
+This is designated by the destruction (and creation) of a quantum of energy, for example a bound electron absorbing a photon.}
+
+{Why the lucky stiff style 
+	style pt text 50 230.9.102 	;his pink color
+	backcolor 25.25.25			;"black" background
+	across
+}
+
+{The really confusing thing about quantum mechanics is absorption of a wave that 
+has spread out. There doesn't seem to be any problem with a wave radiating outwards 
+spherically, but when you try to absorb that wave in one go somehow it's confusing.
+}
+
+;Musical modes
+;http://en.wikipedia.org/wiki/Musical_mode#Modern
+
+{What we observe as
+material bodies and forces are nothing but shapes and variations in the structure of
+space. Particles are just schaumkommen (appearances) - Irwin Schroedinger}
+
+;http://i.imgur.com/AQVgO.jpg
+
+	
+;theme - being john malkovich
+{play-mp3s set-volume seek}
+
+;http://io9.com/5878139/this-no+budget-science-fiction-short-looks-better-that-most-movies
+
+{;USE demo
+>> r: use [a b][a: 2 b: 3 a + b]
+== 5
+>> a
+** Script Error: a has no value
+** Near: a}
+
+;timing belt 120'000 km
+
+;Your application has been successfully submitted for assessment. Your receipt number is 237087: please keep a note of this number in case you need to discuss your application with the University. 
+;mp3 function
+
+stylize/master [
+	mp3-face: sensor with [
+		feel: make feel [engage: func [f a e][f/action f e]]
+		action: func [f e][do-mp3-event e]
+		rate: 2
+		m: r: v: vs: none
+		init: append copy init [init-do-mp3-event focus self]
+	]
+]
+
+init-do-mp3-event: does [
+	;make the data for do-mp3-event
+	do %mp3.r
+	m: music
+	rsn r: random m
+	v: 100
+	vs: 100 ** (1 / 15)  ;volume step
+]
+do-mp3-event: func [event][
+	switch event/type [
+		time [if stopped? [play m: rot m]]
+	]
+	if event/control [
+		if event/shift [
+			switch event/key [
+				left 	[seek -10]
+				right 	[seek 10]
+			]
+			return event
+		]
+		switch event/key [
+			left 	[play m: rotb m]
+			right 	[play m: rot m]
+			up		[v: between v * vs 1 100 set-volume v]
+			down	[v: between v / vs 1 100 set-volume v]
+			#"^/"	[play r: rot r m: find head m r/1]
+			#"^H"	[play r: rotb r m: find head m r/1]
+			#" "	[play m]
+			;#"+"	[append o m/1]
+		]
+	]
+	event
+]
+
+{view layout [
+	f: text-list data read wd [yawp] with [
+		feel: make feel [
+			redraw: func [f a p][yawp]			
+		]
+	]
+]}
+
+;using INIT in stylize
+;http://www.codeconscious.com/rebol/vid-notes.html#UsingINITinStylize
+
+;control + enter => #"^/"
+
+;5/6
+;do some cleaning
+
+{Validated accreditation
+CQU 4
+CSU 3+1
+Curtin UT 4
+Monash 4}
+
+;Can you do your NPDP
+
+;can I do a radiography degee in two years?
+
+{Where can I study Diagnostic Radiography/Medical Imaging Technology?
+http://www.air.asn.au/careerstudy.php
+
+National Professional Development Programme
+http://www.air.asn.au/clintrain.php}
+
+{;It doesn't hurt to try}
+
+{;AIR Australian Institute of Radiography (AIR) 
+;ASAR Australian Sonographer Accreditation Registry
+;MRPB Medical Radiation Practitioners Board of Victoria
+;PACS Picture Archiving and Communication Systems}
+
+{talgai@iprimus.com.au
+Hi Steven Smith,
+
+I'm a prospective radiography student who visited your practice in Nundah. Tarah kindly gave me your email address. I would be much obliged if you would answer a couple of questions.
+}
+
+;10 : 1 ratio of diagnostic to theraputic radiographers - NHS website
+
+;completion, satisfaction, intrinsic motivation
+
+;Procrastination is a mechanism for coping with the anxiety associated with 
+;starting or completing any task or decision.
+
+;TIL over 99% of birds "cleaned" after an oil spill die within weeks. Cleaning birds is seen by many as merely a PR stunt by oil companies.
+;http://news.discovery.com/animals/experts-kill-dont-clean-oiled-birds.html
+
+;the waves that move around are actually just potential interactions
+;which seems quite reasonable actually
+
+;what are virtual particles?
+
+;slideshow []
+;autoplay []
+
+;libwmp3.dll
+{seek: funct [n][
+	ptime: make struct! Mp3_Time reduce [0 n 0 0 0 0 0 0]
+	Mp3_Seek initialized TIME_FORMAT_SEC ptime SONG_CURRENT_FORWARD
+	Mp3_Play initialized
+]}
+
+{
+libwmp3.dll: load/library %libwmp3.dll
+initialized: mp3_initialize
+
+mp3_open "windows filename"
+mp3_play initialized 
+mp3_stop initialized
+
+mp3_destroy initialized
+free libwmp3.dll
+}
+
+{m: music
+playlist: search m "dave brubeck"
+do %mp3.r ;mp3 functions
+autoplay playlist}
+
+;stream processing
+;http://en.wikipedia.org/wiki/Stream_processing
+
+;initialize and destroy objects
+
+;protect-all-words would be useful in debugging
+
+;an editor where right click does what you click on and the results are shown
+;in a separate column
+
+;play-mp3
+;play-mp3s
+
+;principle of least surprise
+
+tools: {
+"/C/Users/Kostoglotov/AppData/Roaming/rebol/public/www.rebol.com/view/tools/"
+effect-lab.r
+font-lab.r
+icon-maker.r
+index.r
+logo-maker.r
+patterns.r
+roam.r
+word-browser.r
+}
+
+roam: does [do %/C/Users/Kostoglotov/AppData/Roaming/rebol/public/www.rebol.com/view/tools/roam.r]
+
+;word-browser: does [do http://www.rebol.com/view/tools/word-browser.r]
+;do-tool: func [arg][do to-file rejoin [%/C/Users/Kostoglotov/AppData/Roaming/rebol/public/www.rebol.com/view/tools/ arg ".r"]
+
+{rotate: func [s] [
+	if tail? s: next s [s: head s] s
+]
+rotate-back: func [s] [
+	if head? s [s: tail s] s: back s
+]}
+
+
+
+
+
+mp3-player: does [launch rebdir/%"mp3-player 20120618.r"]
+
+{stylize/master [
+	image: image effect [aspect] feel resize-feel edge [
+		color: 167.166.170
+		image: none
+		effect: none
+		size: 1x1
+	]
+]}
+
+
+;reggie watts
+;krNfx beatbox "korean fx"
+
+;If you don't want a caret, set the face's text to none
+
+;Small Definitions
+
+fileof: fsp: func [a][first split-path a]
+pathof: ssp: func [a][second split-path a]
+
+torf: :to-rebol-file
+tolf: :to-local-file
+;tolw, tow, etc.
+len: :length?
+dr: does [do rebdir/%rebol.r]
+
+gt?: :greater?
+
+tobin: :to-binary
+toint: :to-integer
+
+call1: func [s] [call s/1 s/1]
+
+rm: funct ['w b] [
+	do reduce [
+		'remove-each w get w b
+	]
+]
+
+fixedsys: make face/font [
+	name: 'Fixedsys
+]
+
+
+
+;anisotropies
+;anistropy
+
+;funct doesn't localize literal words
+
+{
+;aspect ratio of picture argument size
+
+ar: divide to-float p/x p/y
+
+;it is the width over the height
+;indicates the shape of the rectangle
+;the higher the aspect ratio the more 'landscape' the picture is.
+
+;aspect ratio of the screen
+ars: divide to-float screen/x screen/y
+
+either ar > ars [
+	;the height is 
+	as-pair ars/y * ar ars/y
+][
+	as-pair ars/x ars/x / ar
+]
+}
+
+
+
+{"The laws of nature are but the mathematical thoughts of god." - Euclid}
+
+;litigious society, law against wasting the courts time
+;anti-litigiousS
+
+{Neil deGrasse Tyson Testifies Before Senate Science Committee, March 7, 2012 
+http://www.youtube.com/watch?v=rmKlA_UnX8c&feature=player_embedded
+"you don't have to train children to think scientifically."}
+
+;clean-path
+;dirty-path, to-relative-file
+
+;selection of files from slideshow program
+[
+	%/c/users/kostoglotov/pictures/Coo.ool/Religion/Xtian/am_jesus.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL%20FAIL/evil%20eye%20google.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL%20FAIL/image002.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL%20FAIL/mexican-bus-pass.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL%20FAIL/takethismylove_950.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL%20FAIL/unp1.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL/118.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL/1221756086791fg6.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL/dobedobedo.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/LOL/you-have-angered-the-gazebo.thumbnail.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/Maps%20and%20Informative%20Graphs%20et%20al/1202886039020.jpg
+	%/c/users/kostoglotov/pictures/Coo.ool/My%20Rats/P9150032.JPG
+]
+
+;textinfo and line-list
+;http://www.rebol.com/docs/view-face-content.html#section-12
+{
+    If you change the text for a face, be sure to set the face's line-list field to none to force the font system to re-render all the text.
+    You must use a copy of the system/view/line-info object with the textinfo function. Doing otherwise could cause a fatal error in current versions of REBOL.
+    The line number is zero based, not one-based (unlike other index positions in REBOL).
+}
+
+{a: read %rebol.r
+
+w: layout [origin 0 across f1: area a f2: area a timer rate 1 [show [f1 f2]]]
+handle [resize [
+	f1/size: f2/size: as-pair w/size/x / 2 w/size/y
+	f2/offset: as-pair w/size/x / 2 0
+	show [f1 f2]
+]]
+viewr w}
+
+{;3 columns
+a: read %rebol.r
+
+w: layout [
+	origin 0 space 0 across 
+	style area area black black font [name: "Verdana" color: 0.147.0]
+	
+	f1: area a f2: area a f3: area a 
+	timer rate 1 [show [f1 f2 f3]]
+]
+clear event-funcs
+handle [resize [
+	f1/size: f2/size: f3/size: as-pair w/size/x / 3 w/size/y
+	f2/offset: as-pair w/size/x / 3 0
+	f3/offset: as-pair w/size/x * 2 / 3 0
+	show [f1 f2 f3]
+]]
+viewr w}
+
+{a: read %rebol.r
+
+f: make face/font [name: "Consolas" size: 10 color: 0.147.0]
+w: layout [
+	origin 0 space 0 
+	style area area black black font [color: 0.147.0]
+	across f1: area a f2: area a f3: area a f4: area a timer rate 1 [show w]]
+clear event-funcs
+handle [resize [
+	f1/size: f2/size: f3/size: f4/size: as-pair w/size/x / 4 w/size/y
+	f2/offset: as-pair w/size/x * 1 / 4 0
+	f3/offset: as-pair w/size/x * 2 / 4 0
+	f4/offset: as-pair w/size/x * 3 / 4 0
+	show w
+]]
+viewr w}
+
+slideshow: funct [f][
+
+	{f r i sz b w t
+	files random-files image image-size image-box window timer}
+
+	show*: does [
+		i: attempt [load-image f/1] 
+		print [f/1 "image? " image? i]
+		if image? i [sz: fit-size i/size b/size] 
+		show b
+		
+		;optimization
+		attempt [load-image f/2]
+	]
+
+	set 'result copy []
+	w: center-face layout compose [
+		backcolor black origin 0 
+		
+		;you're so vain you probably think this song is about you
+		b: image 200x200 effect [aspect draw [image i 0x0 sz]] 
+			;toggle timer
+			[t/rate: either t/rate [none][1] show t]
+		
+		key (cr)			[f: find head f first r: rotate r show*]
+		key (bs) 			[f: find head f first r: rotate-back r show*]
+		key keycode [right] [f: rotate f show*]
+		key keycode [left] 	[f: rotate-back f show*]
+		key #"+"			[append result probe f/1]
+		key #"^~"			[delete f/1]
+		
+		t: timer rate none	[f: rotate f show*]
+							
+							;toggle timer
+		key #" " 			[t/rate: either t/rate [none][1] show t]
+		
+		;optimization
+		timer rate 0:00:10 [load-image/clear f/2]
+
+	]
+
+	;handle resize 
+	slideshow-event-func: insert-event-func [
+		switch event/type [
+			resize	[b/size: w/size show*]
+		]
+		event
+	]
+
+	;artifacts
+	;halt
+	;cd %/c/users/kostoglotov/
+	;f: readdt [%pictures/][%.jpg %>jpeg %.bmp %.png]
+	
+	rsn
+	r: random f
+	f: find head f r/1
+	show*
+	viewr w
+	result
+]
+
+
+;[do-media f: find head f first r: rotate r]
+;image effect [aspect draw [image i 0x0 sz]]
+
+{lcf: func [s][
+	cf: s/1
+	i: attempt [load-image cf] 
+	if i [sz: fit-size i/size fc/size] 
+	show fc
+	load-image s/2
+]}
+
+{in-dir %/c/users/kostoglotov/ [
+	d: [videos /f]
+	s: [avi mkv]
+	forall d [d/1: dirize clean-path to-file d/1]
+	s: copy s
+	forall s [s/1: to-file join "." s/1]
+]}
+
+{ob·fus·cate/'äbf??skat/
+Verb:	
+
+    Render obscure, unclear, or unintelligible.
+    Bewilder (someone).
+
+Synonyms:	
+darken - obscure - confuse - cloud - dim - becloud}
+
+;small business increase competition
+;remove barriers to enter the market place
+;encourage new competitors. lure them even.
+
+;cartel- oligopoly
+
+{car·tel/kär'tel/
+Noun:	
+
+    An association of manufacturers or suppliers that maintains prices at a high level and restricts competition.
+    A coalition or cooperative arrangement between political parties to promote a mutual interest.
+	Synonyms:	trust - combine - kartell}
+
+;subpanels demo
+
+demo-subpanels: funct[][
+	REBOL [Title: "Subpanels"]
+
+	main: layout [
+		vh2 "Subpanel Examples"
+		guide
+		pad 20
+		button "Panel 1" [panels/pane: panel1  show panels]
+		button "Panel 2" [panels/pane: panel2  show panels]
+		button "Quit" [quit]
+		return
+		box 2x140 maroon
+		return
+		panels: box 220x140
+	]
+
+	panel1: layout [
+		origin 8x8
+		h2 "Panel 1"
+		field "Field 1"
+		field "Field 2"
+		button "The Answer" [alert "I know nothing."]
+	]
+
+	panel2: layout [
+		origin 8x8
+		h2 "Panel 2"
+		across
+		txt "X:"
+		slider 150x16
+		return
+		txt "Y:"
+		slider 150x16
+		return
+		check [panel2/color: maroon  show panel2]
+		txt "Don't click this"
+		return 
+		check [panel2/color: silver  show panel2]
+		txt "Click this" 
+		return
+	]
+
+	panel1/offset: 0x0
+	panel2/offset: 0x0
+
+	panels/pane: panel1
+
+	view main
+]
+
+
+;choose ["A" "B" "C"] func [face btn] [print face/text]
+
+{>> flatten [[23 4234][234 234][234 234][a b]]
+== [23 4234 234 234 234 234 a b]}
+
+;1 kilogram is 2.20459 pounds
+
+;alice cooper
+
+{the essence of a person is their childhood}
+
+{actor
+
+bill 'append 23
+
+equivalent to bill/append 23
+
+an object is basically a programming language, or at least a dictionary
+it's a list of words - functions and variables
+code and data
+
+}
+
+
+;Glass Steagle
+
+rsn: does [random/seed now]
+
+parse-lines: func [str][parse/all str newline]
+
+;parse string at a specific phrase
+
+;!!! yay
+split: parse-phrase: funct [s phrase][
+	o: []
+	parse s [
+		any [
+				copy a phrase (append o a)
+			|	copy b to phrase (append o b)
+		]
+		copy c to end (append o c)
+	]
+	o
+]
+
+{>> probe parse-at-phrase {hello how are you you bastard I am ver ywell you bastard and how are you bastard! I hate you you bastard!} {you bastard}
+["hello how are you " "you bastard" "I am ver ywell " "you bastard" "and how are " "you bastard" "! I hate you " "you bastard" "!"]}
+
+
+{Parse
+Analyze (a sentence) into its component parts and describe their syntactic roles.
+analyze syntactically by assigning a constituent structure to (a sentence)}
+
+{>> ? parse
+USAGE:
+    PARSE input rules /all /case
+
+DESCRIPTION:
+     Parses a series according to rules.
+     PARSE is a native value.
+
+ARGUMENTS:
+     input -- Input series to parse (Type: series)
+     rules -- Rules to parse by (Type: block string none)
+
+REFINEMENTS:
+     /all -- Parses all chars including spaces.
+     /case -- Uses case-sensitive comparison.}
+	 
+
+max-int: 2147483647 	;to-integer 2 ** 31 - 1
+
+{duplicates: duplicate-files-of: funct [f "files"][
+	
+	max-val: 2147483647  ;to-integer 2 ** 31 - 1
+
+	b: copy []
+	foreach f f [repend/only b [f size? f]]
+	foreach b b [if negative? b/2 [b/2: b/2 + max-val]]
+	sort/compare b func [a b][greater? a/2 b/2]
+
+	c: copy []
+	foreach b b [append c b] ;flatten
+
+	;remove non duplicates, keep if find size twice
+	remove-each [f s] c [not find find/tail c s s] 
+	c
+]}
+
+duplicates: does [
+	;Prints files that have the same sizes
+	
+	cd %/
+	rd: request-dir
+	either none? rd [f: readd wd][f: readd rd]
+	;namespace f s o d h rd
+	;f files, s sizes, o output, d duplicates, hs head of sizes
+	;so the deal is that you've got a bunch of files. you remove the ones that are too
+	;small to bother with to speed dthings up. then you make a block of their sizes. 
+	;the ones that have equal sizes may be duplicates. so they are put together
+	;and printed
+
+	remove-each f f [
+		10e6 > to-integer attempt [size? f] ;10 mb
+	]
+
+	s: copy []
+	foreach f f [
+		append s size? f
+	]
+
+	subtract length? s length? unique s
+
+	o: copy []
+	forall s [
+		d: copy []
+		h: head s
+		while [h: find h s/1] [
+			append d pick f index? h
+			h: next h
+		]
+		if greater? length? d 1 [append/only o d]
+	]
+
+	foreach o o [printall o print {}]
+]
+
+{print-same-size-files: does [
+	;a hash table may speed up this algorithm
+	if none? dir: request-dir [dir: %/]
+	f: readd dir
+
+	dt [remove-each f f [
+		100e6 > to-integer attempt [size? f] ;100 mb
+	]]
+
+	s: copy []
+	foreach f f [
+		append s size? f
+	]
+
+	subtract length? s length? unique s
+
+	o: copy []
+	forall s [
+		d: copy []
+		h: head s
+		while [h: find h s/1] [
+			append d pick f index? h
+			h: next h
+		]
+		if greater? length? d 1 [
+			append/only o head insert d s/1
+		]
+	]
+
+	sort/compare o func [a b] [greater? size? a/2 size? b/2]
+	e: extract o 2
+	foreach e e [print [e/1 / 1e6 " mb"] printall next e print {}]
+
+]}
+
+{	k: copy [] ;keep
+	d: copy [] ;delete
+	foreach b o [append k b/1 append d next b]
+
+	t: 0. foreach o d [t: t + size? o]
+	print [t / 1e9 "gigabytes can be saved by deleting these files"]
+}
+
+{
+
+dt [remove-each f f [attempt [100e6 > size? f]]]
+s: []
+foreach f f [append s attempt [size? f]]
+}
+
+
+;rebol needs a pretty button style
+
+;file to face function
+;based on file suffix creates different faces
+
+;special layout function
+
+{view-shell: does [
+	forever [do input show-all wait .1]
+]
+
+show-all: show-all-faces: does [
+	show-all2 sv/screen-face
+]
+
+show-all2: func [f "face"][
+	show f
+	if block? f/pane [
+		foreach f f/pane [
+			probe f/var
+			show-all2 f
+		]
+	]
+]}
+
+
+
+;view layout [a: area b: text-list c: image d: key e: sensor]
+
+;borrow eddie's earphones
+;application idea - screensavers with forest picture and sounds of birds
+
+{couch/kouCH/
+Verb:	
+Express (something) in language of a specified style.}
+
+{iphone apps
+alien blue
+metronome
+commbank
+messenger (fb)
+facebook
+recorder free
+gb4iphone
+forest wallpaper
+triple j
+talking carl
+flashlight
+installous
+speed-r
+mywi 4.0
+dropbox
+colorsplash
+foo call
+imikimi
+doodle fit
+robot unicorn
+docs to go
+tango
+tiny wings
+cut the ropbf
+fruit ninja}
+
+
+{I like reading on my iphone
+I communicate with people
+I like the gps
+I use the calendar and reminders
+I like the camera
+I like it to be quick at everything}
+
+;reader gps
+
+
+
+;editor form dump-obj construct load %rebol.r
+;words-of construct load %rebol.r
+
+
+{notes: copy {}
+note: func [str][append notes str]}
+
+
+{Relative Number of Atoms In The Universe
+H	910'000
+He	89'000
+O	477
+C	326
+N	102
+Mg	28
+Fe	27
+S	16
+Al	3
+Ca	2
+Na	2
+Ni	1	
+Si	1
+Arnett, David (1996). Supernovae and Nucleosynthesis (First ed.). Princeton, New Jersey: Princeton University Press. ISBN 0-691-01147-8. OCLC 33162440.
+http://en.wikipedia.org/wiki/Abundance_of_the_chemical_elements
+}
+
+
+
+;phosphorescent materials hold on to their photons for several seconds before they emit them
+;as opposed to most materials which emit them within microseconds
+
+;%/f/Rebol%20Archive/20110106/library/scripts/sys-port-drag-accept.r
+
+;You gotta admire door-nocking christians
+;underwear, two nice looking women, one, very softly spoken standing on the steps to my house, says she wants to talk to me about the more practical applications of 
+;christian dogma, specifically financing.
+;Your egg is burning! yells my brother
+;Oh well we don't want to 
+
+;How economic inequality harms societies
+;http://blog.ted.com/2011/10/24/how-economic-inequality-harms-societies-richard-wilkinson-on-ted-com/
+
+{v: get-values}
+
+{>> search-words "re eddi"
+== [read-eddies-files reddit reddit-url]}
+
+{>> add-4-to-a-number: func [n][add n 4]
+>> do . first load search-words "ad 4" 3
+== 7}
+
+search-words: func [query][
+	search get-values query
+]
+
+get-word: func [query][
+	get first search get-values query
+]
+
+demo-draw-text: funct [f "face"][
+
+
+	size-char: funct [fnt] [
+		;size of an arial character A at font-size
+		layout [f: box font fnt "A"]
+		size-text f
+	]
+
+	text-to-draw-text: funct [f "face"][
+
+		l: does [length? f/line-list]
+		sz: size-text f
+		ht: second size-char f/font
+
+		;repeat n 35 [c: offset-to-caret f as-pair 0 n * 15 . copy/part c 20]
+
+		o: copy []
+		repeat n l [
+			c: offset-to-caret f as-pair sz/y n * ht 
+			append o index? c
+		]
+		insert o [1]
+
+		p: copy []
+		forall o [
+			if o/2 [append p slice-to f/text o/1 o/2 - 1]
+		]
+
+		forall p [p/1: trim/head p/1]
+
+
+		{foreach p p [
+			if #"^/" <> first p [
+				insert p #"^/"
+			]
+		]
+		remove p/1 ;first line shouldn't have a newline}
+
+		p
+
+	]
+
+	l: text-to-draw-text f
+
+	;generate draw block
+
+	db: copy compose [font (f/font)]
+	forall l [
+		append db [text]
+		append db as-pair 2 (index? l) - 1 * (second size-char f/font) + 2
+		append db l/1
+	]
+
+	f/text: none
+	f/effect: [draw db] 
+	show f
+]
+
+
+{l: open/lines tcp://:5
+wp: [l]	;wait ports
+forever [
+	d: wait wp	;data
+	either same? d l [
+		ap: first l		;active port
+		append wp ap	
+	][
+		ifr: first d	;incoming from remote
+		prin ifr 
+		;wait .1
+	]     
+]
+
+p5: open/lines tcp://:5
+p6: open/lines tcp://localhost:6
+
+;other terminal
+p6: open/lines tcp://:6
+p5: open/lines tcp://localhost:5
+
+
+
+;new connection generator
+ports: reduce [open/lines tcp://:5]
+either same? a: wait ports [
+	append ports}
+
+{;multiple connections
+print-server: func [l "listen port"] [
+    wp: [l]	;wait ports
+    forever [
+        d: wait wp	;data
+        either same? d l [
+            ap: first l		;active port
+            append wp ap	
+        ][
+            ifr: first d	;incoming from remote
+            prin ifr        
+        ]     
+    ]
+]}
+
+
+{serve: funct [l][
+	
+	forever [
+		c: first l
+		until [
+			wait c
+			error? try [do c/1]
+		]
+		print "closing connection"
+		close c
+	]
+]}
+
+{;demo
+
+p5: open/lines tcp://:5
+serve p5
+
+;other terminal
+p5: open/lines tcp://localhost:5
+insert p5 {alert "hello"}
+}
+
+{Do server provides crappy interprocess communication. It sets up a tcp connection on the local host so that two rebol processes
+can be connected in one way communication on a port number}
+
+do-server: funct [port-number][
+	l: open/lines join tcp://: port-number
+
+	forever [
+		c: first l
+		until [
+			wait c
+			error? try [do c/1]
+		]
+		print "closing connection"
+		close c
+	]
+	close l
+]
+
+;do-server 5
+
+{;Try this on the other terminal
+c: open/lines tcp://localhost:5
+insert c {user32.dll: load/library %user32.dll}
+insert c {print "Myellow...?"}}
+
+
+{;listener
+l: open/lines join tcp://: 5 ;port-number 5
+
+do-server: funct [l "listener"][
+	forever [
+		c: first l
+		until [
+			wait c
+			v: first c
+			print v
+			error? try [do c/1]
+		]
+		print "closing connection"
+		close c
+	]
+]}
+
+{server: context [
+	l: c: v: none
+	init: does [l: open/lines join tcp://: 5 ];port-number 5
+	act: does [
+		forever [
+			c: first l
+			until [
+				wait c
+				v: first c
+				print v
+				error? try [do c/1]
+			]
+			print "closing connection"
+			close c
+		]
+	]
+]}
+
+
+{;event object
+
+
+ef: insert-event-func func [f e][
+	print {type key offset time? shift control face double-click}
+	probe attempt [reduce [e/1 e/2 e/3 e/4 e/5 e/6 dump-face e/7 e/8]]
+	print ""
+	if e/type = 'close [remove-event-func :ef]
+	e
+]
+
+view w: layout [f: area]
+de
+
+
+[key #"s" 222x85 4478539 false false "e/7" false]
+[key #"f" 222x85 4478695 false false "e/7" false]
+[key #"d" 222x85 4478710 false false "e/7" false]
+[move none 215x87 4479709 false false "e/7" false]
+[move none 202x93 4479709 false false "e/7" false]
+
+;event
+;type key offset id? false false face false
+}
+
+
+;Cool Tools - Computers
+;http://www.kk.org/cooltools/archives/cat_computers-grid.php
+
+;Coding Horror
+;http://www.codinghorror.com/blog/2008/01/the-trouble-with-pdfs.html
+
+;Bare Metal OS for x86-64 computers
+;http://www.returninfinity.com/baremetal.html
+
+
+
+{done-editor-with-undo?: false
+editor: func [file /app app-word /local tmp][
+	if not done-editor-with-undo? [do %editor-with-undo.r done-editor-with-undo?: true]
+    either link? [
+        if block? ctx-edit [
+            ctx-edit: context either all [
+                value? 'fileset-files?
+                tmp: fileset-files? 'desktop
+                find tmp %desktop/edit.r
+                tmp: load/header link-root/desktop/edit.r
+            ] [next tmp] [ctx-edit]
+        ]
+        either app [ctx-edit/view-file/app file app-word] [ctx-edit/view-file file]
+    ] [
+        either exists? tmp: view-root/desktop/scripts/edit.r [do/args tmp file] [
+            if block? ctx-edit [ctx-edit: context ctx-edit]
+            ctx-edit/view-file file
+        ]
+    ]
+]}
+
+;editor ctx-edit
+
+{;NickA Editor with undo
+base-color: 230.230.255  base-effect: []
+ctx-edit: mold :ctx-edit
+changes: [
+    {style tx vtext bold 40x22 font [colors: [0.0.0 200.200.200]]} 
+    {style tx text 40x22 font [colors: [0.0.0 170.170.170]]}
+    {vtext} {text}
+    {btn-enter} {btn} {btn-cancel} {btn} {btn green} {btn} {btn red + 50} {btn}
+    {[tabs: 28 origin: 4x4]}
+    {[tabs: 28 origin: 4x4] with [
+        undo: []
+        colors: [254.254.254 255.255.255]
+    ]}
+    {Ctrl-V - paste text}
+    {Ctrl-V - paste text^/^-^-Ctrl-Z - undo^/^-^-Ctrl-Y - redo}
+]
+foreach [original changed] changes [replace/all ctx-edit original changed]
+ctx-edit: do ctx-edit
+editor none}
+
+{;research textinfo function as in ctx-text/edit-text function
+    textinfo face line-info 0
+    liney: line-info/size/y}
+
+
+edit-block: funct [arg][
+	w: layout [
+		backcolor white origin 0 space 0 
+		across 
+		a: text-list 400x600 data arg [
+			insert b/texts take find face/texts value
+			show b
+		]
+		b: text-list 400x600 data copy [] [
+			insert a/texts take find face/texts value
+			show a
+		]
+		;btn "set edited-block" [edited-block: b unview b]
+	]
+	view/new/title/options center-face w "Block Editor" [resize]
+	a/update
+	
+	handle [resize [
+		ns: as-pair (w/size/x / 2) w/size/y
+		a/resize ns  b/resize ns
+		b/offset: as-pair (w/size/x / 2) 0
+		a/update b/update
+		show [a b]
+	]]
+		
+	do-events
+	arg
+]
+
+{f: read wd
+edit-block f}
+
+{edit-block: funct [b][
+	win: layout [
+	
+		backcolor white
+		across origin 0 space 0
+		a: text-list data b [
+			insert g/texts take find face/texts value
+			show b
+		]
+		b: text-list data copy [] [
+			insert f/texts take find face/texts value
+			show a
+		]
+	]
+	ef: insert-event-func func [f e][
+		if e/type = 'resize [
+			f/resize
+		]
+		e
+	]
+	b
+]}
+
+{http://en.wikipedia.org/wiki/Reaction_mass
+All acceleration requires an exchange of momentum, which can be thought of as the "unit of movement". }
+
+{As of yet I don't know how to get a block of shared folders from another pc other than by using the "net view" from the command line}
+eddies-dirs: [%/eddie-pc/David%20Icke%20Melbourne%202009/ %/eddie-pc/EDDIE%20BD-ROM/ %/eddie-pc/Eddie'/ %/eddie-pc/Eddie's%20Movies/ %/eddie-pc/Eddie's%20New%20Downloads/ %/eddie-pc/Eddies%20Movies/ %/eddie-pc/Eddies%20New%20Downloads/ %/eddie-pc/Eddies%20TV%20Series/ %/eddie-pc/Electronica/ %/eddie-pc/My%20Movies2/ %/eddie-pc/My%20Music/ %/eddie-pc/My%20Tv%20Series/]
+read-eddies-files: has[f][
+	f: readd eddies-dirs
+	rm f [dir? f]
+	eddies-files: f
+]
+
+;file-browser: 
+view-files: funct [f][
+
+	win: layout [
+		origin 0
+		tl: text-list data f [call value]
+	]
+	view/new/options/title win [resize] "File Browser"
+	ef: insert-event-func func [face event] [
+		switch event/type [
+			close [remove-event-func :ef]
+			resize [tl/resize win/size tl/update show tl]
+		]
+		event
+	]
+	do-events
+	f
+]
+
+{f: read-eddies-files
+rm f [dir? f]
+view-files search f "sliders"}
+
+;f: %/c/users/kostoglotov/pictures/Coo.ool/Agreed/79Mzg.jpg
+
+try-to-load: tload: func [file] [
+	if cant [load file] [exit] ;cause error
+]
+
+view-on-screen-2: views2: func [face][view/offset face as-pair screen/size/x 0]
+
+{LouisCK on reddit
+this is my second time here. I just have to much to do to roam around stuff like this. It seems like a great thing. I just can't do it. I killed my facebook page years ago because time clicking around is just dead time. Your brain isn't resting and it isn't doing. I think people have to get their heads around this thing. All this unmitigated input is hurting folks. My opinion.
+}
+
+;===feel
+
+;NickA
+move-feel: make object! [
+    engage: func [f a e] [
+        if a = 'down [
+            initial-position: e/offset
+            remove find f/parent-face/pane f
+            append f/parent-face/pane f
+        ]
+        if find [over away] a [
+            f/offset: f/offset + (e/offset - initial-position)
+        ]
+        show f
+    ]
+]
+
+{resize-feel: make object! [
+    engage: func [f a e] [
+        if a = 'down [
+            initial-position: e/offset
+			initial-size: f/size
+			
+            remove find f/parent-face/pane f
+            append f/parent-face/pane f
+        ]
+        if find [over away] a [
+           f/size: initial-size + (e/offset - initial-position)
+		   {print [
+				"initial position: " initial-position
+				"e/offset: " e/offset
+				"f/size: " f/size
+			]}
+        ]
+        show f
+    ]
+]}
+
+;rsn vl [image ro images]
+
+{view layout [size 800x800
+	box red feel resize-feel
+]}
+
+join-each: funct [f arg][
+	out: copy []
+	arg: reduce ['append 'out 'reduce arg]
+	foreach f f arg
+]
+
+{f: read wd
+join-each f [f newline]}
+
+change-each: funct ['b c][
+	out: copy []
+	set b do reduce [
+		'foreach b b append copy [append out] c
+	]
+]
+
+keep-each: funct ['b c][
+	do reduce [
+		'remove-each b b append copy [not] c
+	]
+]
+
+;http://www.rebol.org/view-script.r?script=imagemagick-helper.r
+
+demonstrate-bindology: does [
+	do probe {
+		xs: []
+		use [x] [
+			x: 12
+			append xs 'x
+		]
+		use [x] [
+			x: 9
+			append xs 'x
+		]
+		use [x] [
+			x: "REBOL"
+			append xs 'x
+		]
+		probe xs
+		; == [x x x]
+		print xs
+		; == 12 9 REBOL
+	}
+]
+
+;blocks are not automatically evaluated
+
+mold-word: mold2: func [
+	{Mold word so that it can be reevaluated later. "append: :append"}
+	'w
+][
+	rejoin [mold to-set-word w " " mold get w]
+]
+
+{every: rate: func [
+	"Execute every n seconds"
+	n b
+][
+	forever [
+		wait n
+		do b
+	]
+]}
+
+{each: funct ['w b] [
+	clear stack
+	do reduce [
+		'foreach w get w b
+	]
+]}
+
+{keep: funct ['a b] [
+
+	out: copy []
+	do reduce [
+		'foreach a a append copy [append out] b
+	]
+]
+
+keep: }
+
+{b: [2 342 34 23 423 423 ]
+each b [keep b / 2]
+each b [keep b / 2]
+
+;keep b [b / 2]
+
+;become: 
+
+b: [2 342 34 23 423 423 ]
+change-each b [b / 2]}
+
+;filter, sieve separate, sort (no), align, test, 
+
+;v: sieve f [vid? f]
+;separate f [[video? f][picture? f][music? f]]
+;filter f [dir? f]
+
+{
+dt [f: read-deep user-dirs
+print "read"
+
+m: []
+v: []
+p: []
+foreach f f [
+	s: suffix? f
+	if find music-suffix s [append m f]
+	if find video-suffix s [append v f]
+	if find picture-suffix s [append p f]
+	reduce [m v p]
+]]
+}
+
+{
+a: [b 2 c]
+b: [d e]
+c: [e d]
+d: [2 3]
+e: [4 5]
+
+each a [keep reduce a]
+
+
+reduce [b 2 c] > [reduce b reduce 2 reduce c]
+
+}
+
+
+;graph.r
+;http://www.rebol.com/how-to/subpanels.html
+
+;s for screen
+;w for window
+;f for face
+;f1 f2 f3 f4 f5, face 1, etc.
+
+
+{;It's faster just to create a 
+;blob unblob
+
+to-32bit: func [int] [
+	do rejoin ["#{" form to-hex int "}"]
+]
+
+blob: funct [dir][
+	foreach f f [
+		bin: to-binary f
+		append out to-32bit length? bin
+		append out bin
+	]
+]
+
+unblob: funct [blob][
+	until [
+		sz: to-integer copy/part blob 4
+		append out copy/part blob 4
+		append out slice blob 5 sz
+		blob: skip blob sz + 4
+		tail? blob
+	]
+	out
+]}
+
+{ladislav
+cyphre
+maxim
+nicka
+kaj de vos}
+
+demo-simple-menu-system2: demo-menu: does [
+	menu-color: 235.240.245
+
+	svv/choice-face: make svv/choice-face [
+		edge/size: 1x1
+		edge/color: 200.200.200
+	]
+
+	stylize/master [
+		menu-list: choice left white 1x20 with [
+			para: [indent: 6x0 origin: 0x0 margin: 0x0]
+			font: [style: none  shadow: none  colors: [black 5.5.255]]
+			colors: reduce [white white - 20] ;menu-color 
+			;edge/size: 1x1
+			;edge/color: 200.200.200
+			edge: none ;svv/choice-face/edge changes menu edge
+		] feel [
+			engage: func [face action event][
+				if (action = 'down) or (action = 'up) [
+					choose/style/window/offset extract face/menu 2 func [face parent][
+						parent/data: find parent/texts face/text
+						do-face parent parent/text: face/text
+					] face face/parent-face (face/offset + (face/size/y * 0x1))
+				]
+			]
+		][do select face/menu value  face/text: face/texts/1  show face]
+	]
+
+
+	menu-Options: [
+		"Open File..." [attempt [a1/text: read request-file/only show a1]]
+		"Copy to Clipboard" [do-face b1 1]
+		"Paste from Clipboard" [a1/text: read clipboard:// show a1]
+		;"______________________^/" []
+		"About..." [alert "This menu is just a choice button widget :)"]
+		;"______________________^/" []
+		"Halt" [halt]
+		"Quit" [quit]
+	]
+	menu-Help: [
+		"About..." [alert "This menu is just a choice button widget :)"]
+	]
+
+	view center-face layout [
+		size 440x250 
+		origin 5x5 space 5 backdrop white across
+		box menu-color 8x20
+
+		m1: menu-list "Options" 170 with [menu: menu-Options]
+		pad (size-text m1) + 10 - m1/size * 1x0
+		m2: menu-list "Help" 100 with [menu: menu-Help]
+		box white 2000x20
+		origin 20x40  space 20x20  below
+		a1: area wrap with [colors: [254.254.254 248.248.248]]
+		b1: btn "Submit" [write clipboard:// a1/text alert "Copied"]
+	]
+
+]
+
+;specification of files
+;[dir type query]
+
+{[downloads
+pictures
+music
+videos
+tv
+movies
+dropbox
+f-drive
+desktop]}
+
+{sizes?: funct [f][
+	sz: 0.
+	foreach f f [
+		sz: sz + size? f
+	]
+]}
+
+{sort-files: funct [
+	"Puts dirs ahead of files"
+	f
+][
+	d: remove-each f copy f [dir2? f]
+	f: remove-each f copy f [not dir2? f]
+	append sort d sort f
+]}
+
+{call/console "net view eddie-pc"
+
+
+a: parse-lines {
+	David Icke Melbourne 2009  
+	EDDIE BD-ROM               
+	Eddie'                     
+	Eddie's Movies             
+	Eddie's New Downloads      
+	Eddies Movies              
+	Eddies New Downloads 
+	Eddies TV Series           
+	Electronica                
+	My Movies2                 
+	My Music                   
+	My Tv Series               
+}
+
+b: copy[]
+foreach a a [
+	append b join %/eddie-pc/ dirize a
+]
+
+eddie: b
+;clip mold eddie}
+
+{foreach d eddie-dir [index-files d f: []]
+>> dt [foreach d eddie-dir [index-files d f: []]]
+== 0:00:22.792
+}
+svv/choice-face: make svv/choice-face [
+	edge/size: 0x0
+]
+
+probe-face: func [obj /with w][
+	if none? w [w: []]
+	foreach name append [facets feel type offset size text color edge font para options show? old-offset old-size face-flags state flags parent] w [
+		attempt [
+			prin join name ": " probe get in obj name
+		]
+	]
+]
+
+;http://www.rebol.org/view-script.r?script=vid-build.r
+
+{at pos image load file size
+at pos text 
+
+;for images, save the file name, for text just save the text in the file, or it could be the filename who knows
+data: [image-file text image-file]
+
+;then use the drag function to make
+
+;so then you can make a 
+
+draw compose [image (face/image) 0x0 (fit-size face/image/size face/size)]
+
+draw compose [text (face/text) font (face/font)]
+;need to do something fancy with offset-to-caret to find where to put the line feeds
+
+}
+
+{s: make-sound
+
+play-for-seconds 3}
+
+{below: :min
+above: :max}
+
+between: func [
+	"confines the value between low and high"
+	val low high
+][
+	max low min high val
+]
+
+between?: func [
+	"Returns true if x is between a and b (a & b included), Nick Antonaccio"
+	a [number!] b [number!] x [number!]
+][
+	1 <> multiply sign? a - x sign? b - x
+]
+
+
+{Nginx is a free, open-source, high-performance HTTP server and reverse proxy, as well as an IMAP/POP3 proxy server. Igor Sysoev started development of Nginx in 2002, with the first public release in 2004. Nginx now hosts nearly 12.18% (22.2M) of active sites across all domains. Nginx is known for its high performance, stability, rich feature set, simple configuration, and low resource consumption. 
+http://wiki.nginx.org/Main}
+
+;system/view/vid/vid-face/feel ;same as face/feel. it's full of nones!
+
+
+;sv/window-feel
+;has find-key-face in it
+
+
+;layout-images: 
+
+;wtf is the path function and a get-path!
+
+{do-it [
+	make-face 'area	 
+	get in it 'feel  
+	get in it 'engage  
+	second :it
+	select it [switch act]  
+	select it [key]
+]
+
+use [fc fn b][
+	fc: make-face 'area	 
+	eng: get in fc/feel 'engage 		
+	b: body-of eng							;body of engage function 
+	k: select select b [switch act] [key]	;key event code
+]
+
+demo-do-it: does [
+	do probe {do-it [
+		make-face 'area	 
+		get in it/feel 'engage
+		second :it
+		select select it [switch act] [key]
+	]}
+]
+
+get-path
+== [edit-text face event get in face 'action]}
+
+;do-it introduces a pronoun into rebol to solve the problem of continually pressing home and end when composing a rebol one liner.
+;forever [do-it input]
+
+{
+
+;don't know how to encapsulate atm :(
+
+push: func [a] [append/only stack :a a]
+stack: []
+dup: does [last stack] 
+over: does [pick tail stack -2]
+drop: does [take/last stack do []] 		;do[] makes an unset value
+
+do-stack: func [b][
+	until [
+		b: do/next b
+		unless unset? b/1 [push b/1]
+		empty? b: b/2
+	]
+	stack
+]
+
+
+
+
+
+
+stack: []
+push: func [a] [append/only stack :a a]
+pop: func [] [take/last stack]
+dup: does [append/only stack last stack]
+over: does [append/only stack pick tail stack -2]
+
+
+do-next: func [
+	b
+][
+
+	push: func [a] [append/only stack :a a]
+	stack: []
+	c: does [last stack] 
+	c2: does [pick tail stack -2]
+	d: does [take/last stack]
+
+	until [
+		b: do/next b
+		unless unset? b/1 [push b/1]
+		empty? b: b/2
+	]
+	stack
+]}
+
+;it: :pop ;screws up do-it function
+
+{;Pronouns in rebol
+;This version works with the stack and can be the basis of a version with more than one pronoun.
+;Must say I don't have a lot of faith in a system with more than one pronoun in it.
+;How can it work like this. I don't imagine that it can. Because every time do/next returns something it is
+pronoun: func [a][
+	until [
+		set [it arg] do/next arg
+		push it
+		empty? arg
+	]
+	arg
+]}
+
+;find-images
+;find-files [user-dirs [%.gif] ""]
+;find-gif "emma"
+;find-video "" 
+
+{callr find-video  
+call1 find-video "something"
+
+
+filter first directories
+then file types
+then file names
+
+>> query: "something"
+== "something"
+>> reduce [image-dir image-suffix query]
+== [%/c/users/kostoglotov/pictures/ [%.jpg %.jpeg %.png %.bmp] "something"]
+
+
+find-images: func [query][
+	find-files reduce [image-dir image-suffix query] ;q means quit
+
+draw-image: func [face][
+	fi: face/image
+	sz: aspect fi/size face/size ;fit-size 
+	draw face/image [image fi 0x0 sz] ;[image fi] ;
+]
+
+fi: fc/image
+fc/size: aspect fi/size fc/size ;fit-size 
+draw fc/image [image fi 0x0 sz] ;[image fi] ;
+show fc
+
+
+
+
+f: %/c/users/kostoglotov/pictures/Coo.ool/WTF/www.myconfinedspace.com.jpg
+i: load f
+fc: make-face [effect: [aspect]]
+sz: fit-size fc/size
+}
+
+;draw-image
+;draw-text
+;draw-text where do the line feeds go?
+
+;view maximized on screen 2
+;>> win: layout [area screen/size] win/changes: [maximize] view/options/offset win [resize] as-pair screen/size/x 0
+
+;on unfocus the text is drawn by draw
+;"`" is command key. press "`" then a page of commands and options comes up which disappears once something is selected
+
+
+;http://www.rebol.org/view-script.r?script=sys-port-drag-accept.r
+
+net-view: func [str][
+	call/console join "net view " str
+]
+
+view-network: net-view: does [
+	call/console "net view"
+]
+
+eddie-dir: %/eddie-pc/
+
+demo-pdf-maker: does [
+	
+	do %pdf-maker.r
+
+	cd desktop-dir
+
+	tb: [
+		font Times-Roman 4.23 
+		{while to create a page of default size (ISO A4, 211^(D7)297 millimeters) but rotated 270 degrees clockwise: Now This is kind of cool. However, thet tabbing thing does suck somewhat.
+Now this is what I like to do. This is a tool that is cool. Testing testing. ossible to specify an offset for the page; this offset is used to translate all the
+elements inside the page. (This feature has been added to allow fine alignment adjustment when you are printing
+on paper with a pre-printed form.) To offset a page by 5 millimeters in the x axys and 3 millimeters in the y axys
+the command is (as you would have guessed) offset 5 3.
+Please note that the origin in a PDF page is the LOWER LEFT corner and the y axys is swapped if you
+compare it to REBOL/View’s faces y axis:}
+	]
+		
+
+	test: layout-pdf pages: compose/deep/only [
+		[;page 1
+			textbox (tb)
+		]
+	]
+
+	write/binary %test.pdf test
+	call %test.pdf
+
+]
+
+;Google Sites
+;sites.google.com
+;http://sites.google.com/site/cnrebol/
+;make your own that looks like this
+
+{view layout [
+    origin 0 
+    t: h1 red black (to string! now/time) 
+        rate 1 
+        feel [
+            engage: [
+                t/text: now/time 
+                show t
+            ]
+        ]
+] 
+}
+
+;call/console "net view \\eddie-pc"
+
+;gareth678 eddie's sharing password
+
+{A watt is a joule per second so a watt.hour would be a total amount of energy}
+
+
+{s.pi.d	34.23.df	234		r.
+h.erg.	r.r.ge		
+
+s = at2
+
+s	a.t.t
+	2
+
+[ 	[ [[][]] [[][]] ] 
+	[ [[][]] [[][]] [[][]] [[][]] ] 
+]
+
+s = a * t * t / 2
+
+fg = g * m1 * m2 / r * r
+
+equation is two expressions, each with a numerator and a denominator}
+
+;a wave is a chance of an event occuring
+
+{>> call/console "net view"
+Server Name            Remark
+
+-------------------------------------------------------------------------------
+\\EDDIE-PC
+\\HARVEY_BIRDMAN
+\\USER-PC
+The command completed successfully.
+
+== 0
+>> call/console "net view \\eddie-pc"
+Shared resources at \\eddie-pc
+
+
+
+Share name                 Type  Used as  Comment
+
+-------------------------------------------------------------------------------
+David Icke Melbourne 2009  Disk  (UNC)
+EDDIE BD-ROM               Disk
+Eddie's New Downloads      Disk
+Eddies Movies              Disk
+Eddies New Downloads       Disk           A fine selection of Eddie's recent downloads
+Eddies TV Series           Disk  (UNC)
+Electronica                Disk
+My Music                   Disk
+My Tv Series               Disk  (UNC)
+The command completed successfully.
+
+== 0
+}
+
+
+{%/EDDIE-PC/
+find-music
+
+read f: %/EDDIE-PC/My%20Music/Electronica/
+== [%12''%2080's%20Dance%20%28Family%20Recordings%29/ %18%20Digital.mp3 ;%2%20Gigi%20D'Agostino%20-%2}
+
+{The size-text function returns the number of pixels in width and height required to render text for a face. For a single line of text, this function is mainly used to determine the width of the text. For multiple lines, it is normally used to compute the height of the text.
+
+page: read http://www.rebol.com
+print length? page
+
+==9902
+
+aface: make face [text: page size: 600x500]
+print size-text aface
+
+==593x3885
+
+}
+
+{size-face: funct [t "text"][
+	aface: make face [text: t size: sz]
+	size-text aface
+]}
+
+resize-font: func [
+	{Returns a font with the size to fit the text in the face if it's on one line.
+	Needs face with a draw argument of form [font fnt text txt]}
+	face-argument
+][
+	db: face-argument/effect/draw	;draw block
+	if word? db [db: get db]
+	
+	fnt: get db/2
+	txt: get db/4
+	layout compose [fac: area (txt) font fnt no-wrap ]
+
+	st: size-text fac
+	sfc: face-argument/size
+	while [st/x > sfc/x][
+		fac/font/size: fac/font/size - 1
+		st: size-text fac
+	]
+	fac/font
+]
+
+{;Two faces editing the same text. So cool! :)
+t1: {one two three four five}
+view win: layout [
+	across f1: area 400x400 t1 f2: area 400x400 t1
+	timer rate 1 [show [f1 f2]]
+]
+}
+
+
+
+
+{
+t1: {one two three four five}
+win: layout [fc: area 1600x800 t1 effect [draw drw]]  
+times24: font [name: "times" size: 24] 
+drw: [pen blue font times24 text 2x2 t1]
+viewr win 
+wait []
+}
+
+
+
+{
+.: does [show fc]
+
+t1: {^/how are you today} 
+win: layout [fc: area t1 effect [draw drw]] 
+st: size-text fc 
+fc/text: none 
+view win 
+
+drw: [text font verdana24 t1] 
+drw: [text 2x2 t1] 
+drw: [pen blue text 2x2 t1] 
+t1: {^/how are you today^/I'm very well thank you.}
+
+}
+
+size-line: funct [
+	{make a block of the size of texts with different font sizes}
+	face-arg
+][
+	txt: face-arg/text
+	fnt: face-arg/font
+
+	layout compose [fac: area (txt) font fnt no-wrap ]
+
+	o: copy []
+	while [fac/font/size > 8][
+		append o size-text fac
+		fac/font/size: fac/font/size - 1
+
+	]
+	o
+]
+
+;layout [fac: box font verdana24 "Hello how are you"]
+;dt [size-line fac]
+;takes about half a second :(
+
+size-line: size-line-of-text: svt: funct [
+	"Calculate the size of a line onf text given its font"
+	txt1 fnt1
+][
+	layout [fc: area font fnt1 2000x2000 txt1] 
+	size-text fc
+]
+
+
+;size-line "Hello my baby. Hello my honey!" tahoma12
+
+demo-draw: funct [a "spec"] [
+	a: compose a
+    view layout [box 400x400 black effect [draw a]]
+]
+
+;***
+
+parse-links: funct [str][
+	o: copy[]
+	parse str [
+		any [
+			to {"http://} thru {"} copy a to {"} (append o a)
+		]
+	]
+	o
+]
+
+;grid, layout table, grid, matrix, squares, any of these names will do
+make-offsets: func [
+	{Make block of offsets for a layout to have faces of size b put into it}
+	a "max size" 
+	b "size of element"
+][
+	o: copy []
+	for x 0 a/x - b/x b/x [
+		for y 0 a/y - b/y b/y [
+			append o as-pair x y
+		]
+	]
+]
+
+;>> table 800x800 200x200
+;== [0x0 0x200 0x400 0x600 200x0 200x200 200x400 200x600 400x0 400x200 400x400 4
+;00x600 600x0 600x200 600x400 600x600]
+;>> 800x800 / 200x200
+;== 4x4
+
+
+;ofs: make-offsets 800x800 200x200
+;foreach fc pn [fc/offset: first+ ofs] ofs: head ofs
+
+t1: {one two three four five }
+
+get-caret-word: func [c][
+	trim copy/part
+	any [find/reverse c whitespace head c]
+	any [find c whitespace tail c]
+]
+
+{get-line: does bindv [
+	trim copy/part
+	any [find/reverse sv/caret lf head sv/caret]
+	any [find rv/caret lf tail sv/caret]
+]
+}
+
+;not within? event/offset win-offset? sv/focal-face sv/focal-face/size
+
+;. 'debug instead
+{debug: does [print "debug"]}
+
+;Hacking View
+;ief ref ef vl sv svv sf de w f
+
+vl: funct [a][
+	view/new/options/title center-face layout 
+	append copy [origin 0 space 0 backcolor white] a [resize] "Test"
+	w: sf/pane/1 ;window unexpected
+	f: w/pane/1 ;face		unexpected
+	ef: ief [
+		switch e/type [
+			resize 	[f/size: w/size show f]
+			close 	[ref :ef]
+		]
+	]
+	focus f
+	de
+]
+ref: :remove-event-func
+ief: func [
+    {Add a function to monitor global events. Return the func.}
+    funct [block! function!] "A function or a function body block"
+][
+    if block? :funct [funct: func [f e] funct]
+    insert system/view/screen-face/feel/event-funcs :funct
+    :funct
+]
+
+
+
+demo-ief: does [
+	ief [if e/key [. e/key] e]
+	vl [f: area do [focus f]]
+]
+
+viewr: func [w] [view/options w [resize]]
+
+;for hacking
+
+{;changing keyboard code in engage
+mld: mold fc/feel {key [edit-text face event get in face 'action]}
+replace mld {key [edit-text face event get in face 'action]} {key [edit-text face event get in face 'action probe event/type]}
+fc/feel: do bindvt load mld}
+
+;bind view and text
+;bind to system/view ctx-text
+bindvt: func [b] [bind/copy bind/copy b ctx-text rebol/view]
+;bind-view-ctx-text: bind*: :bindvt
+;bindv: func [b][bind/copy b system/view]	;bind to system/view 
+
+;/C/users/kostoglotov/music/music/Beastie Boys/The In Sound From Way Out/11 - Ricky's Theme.mp3 
+;cool jazz
+
+event-funcs: system/view/screen-face/feel/event-funcs
+
+mp3: does [process "do rebdir/%mp3.r"]
+
+simple-search: funct[
+	"Search for files that have a string in them. By Nick Antonaccio"
+][
+
+	phrase: request-text/title/default "Text to Find:" "the"
+	start-folder: request-dir/title "Folder to Start In:"
+	change-dir start-folder
+	found-list: ""
+
+	recurse: func [current-folder] [ 
+		foreach item (read current-folder) [ 
+			if not dir? item [  if error? try [
+				if find (read to-file item) phrase [
+					print rejoin [{"} phrase {" found in:  } what-dir item]
+					found-list: rejoin [found-list newline what-dir item]
+				]] [print rejoin ["error reading " item]]
+			]
+		]
+		foreach item (read current-folder) [ 
+			if dir? item [
+				change-dir item 
+				recurse %.\
+				change-dir %..\
+			] 
+		]
+	]
+
+	print rejoin [{SEARCHING for "} phrase {" in } start-folder "...^/"]
+	recurse %.\
+	print "^/DONE^/"
+	editor found-list
+]
+
+;humane interface !!!
+
+{http://www.rebol.com/docs/core23/rebolcore-13.html
+14.2 Creating Servers}
+
+{A socket address is the combination of an IP address and a port number, much like one end of a telephone connection is the combination of a phone number and a particular extension. Based on this address, internet sockets deliver incoming data packets to the appropriate application process or thread.}
+
+{http://www.danzig.jct.ac.il/tcp-ip-lab/ibm-tutorial/3376c210.html
+protocol, local-address, local-process
+In the TCP/IP suite, for example:
+tcp, 193.44.234.3, 12345} 
+
+{read-port: :first
+write-port: :append}
+
+{;Wait for connections
+l: open/lines tcp://:5
+
+forever [
+    c: first l
+    until [
+        wait c
+        error? try [do c/1]
+    ]
+	print "closing connection"
+    close c
+]
+
+c: open/lines tcp://localhost:5
+insert c {user32.dll: load/library %user32.dll}
+
+insert c {print "Myellow...?"}
+}
+
+;alias seems to cause problems :(	20120430-1732
+;** Script Error: Alias word is already in use: find-datatype
+
+
+print-server: func [l "listen port"] [
+    wp: [l]	;wait ports
+    forever [
+        d: wait wp	;data
+        either same? d l [
+            ap: first l		;active port
+            append wp ap	
+        ][
+            ifr: first d	;incoming from remote
+            prin ifr        
+        ]     
+    ]
+]
+
+{	;Print Server Test. Needs 2 Rebol shells
+	;one terminal - server/host whatever
+	p: open tcp://:5
+	print-server p
+
+	;another terminal - guest, client, customer, etc.
+	p: open tcp://localhost:5
+	insert p "hello"
+}
+
+comment {
+You can test this by running the above code from one console and the following from another:
+
+    from-remote: open tcp://localhost:12345
+    insert from-remote "test"
+
+Leave that console open and open yet another console and doing the same again but with "test2" as our string value.
+
+    from-remote2: open tcp://localhost:12345
+    insert from-remote2 "test2"
+}
+
+comment [
+
+data: {}
+append-server: func [l "listen port"] [
+    wp: [l]	;wait ports
+    forever [
+        d: wait wp	;data
+        either same? d l [
+            ap: first l		;active port
+            append wp ap	
+        ][
+            ifr: first d	;incoming from remote
+            append data ifr        
+        ]     
+    ]
+]
+
+;Print Server Test. Needs 2 Rebol shells
+;one terminal - server/host whatever
+p: open tcp://:5
+print-server p
+
+
+
+
+;another terminal - guest, client, customer, etc.
+p: open tcp://localhost:5
+dt [loop 1000 [insert p "hello"]]
+
+
+]
+
+
+serve-on: func [port-num][
+
+	server: open/lines join tcp://: port-num            ; Open a TCP network port.
+	print "Server started...^/"
+	connection: first wait server               ; Label the first connection.
+	forever [
+			probe data: first connection                  ; Get a line of data.
+			do data   ; Display it.
+			if find data "end" [                    
+					close server                        ; End the program if the
+					print "Server Closed"               ;   client user typed "end".
+					halt
+			]
+	]
+	close server
+]
+
+request-on: func [pn txt][
+	p: open/lines join tcp://localhost: pn
+	insert p txt
+	close p
+]
+
+{
+	;Test serve-on, request-on
+	;These two lines need to be in different interpreters
+	serve-on 55555
+	request-on 55555 {alert "hello"}
+}
+
+
+{tools: [
+	"7zip"
+	tcc
+	lcc
+	sumatrapdf
+	freetype2
+	agg
+	autohotkey
+	upx ultimate packer for windows
+]
+
+}
+
+
+
+
+;enbase/base arg 16
+
+;dehex already defined
+;>> dehex %"%3Atrap%20by%20cypher%2F.txt"
+;== ":trap by cypher/.txt"
+
+;made to convert urls into file names
+rehex: funct [f] [
+	f: copy f
+	replace/all f ":" "%3A"
+	replace/all f "/" "%2F"
+]
+
+save-thru: save-url: funct [u "url"] [
+	f: rehex u
+	write/binary p: join wd f read/binary u
+	p	
+]
+
+{>> to-block %/c/Users/Kostoglotov/Dropbox/Rebol/
+== [/c /Users /Kostoglotov /Dropbox /Rebol /]}
+
+;make autocomplete for words only
+
+
+;How can I get google cache age of any url or web page
+;http://web.archive.org/web/20110718012432/<url>
+
+
+
+parse-url-file: funct [text][
+	start: {[InternetShortcut]^/URL=} 
+	finish: {^/}
+	parse text [
+		thru start copy b to finish
+	]
+	to-url b
+]
+
+{[DEFAULT]
+BASEURL=http://eclick111.passgamsat.hop.clickbank.net/?tid=b00
+[InternetShortcut]
+URL=http://eclick111.passgamsat.hop.clickbank.net/?tid=b00
+n=496415}
+
+
+;all integers are signed
+;max integer is to-integer #{7fffffff}
+
+;20120429-1423
+
+{
+;Words Of
+
+
+w: words-of c
+;make block of words that have the values in c
+}
+
+menu-system: does [
+
+	;http://re-bol.com/rebol.html#section-9.13
+	do-thru http://www.rebol.org/library/scripts/menu-system.r 
+
+	context [
+		m: [edit: item "Menu" menu [item "Item1" item "Item2"]]
+		s: [
+			menu style edge [size: 1x1 color: 178.180.191 effect: none]
+			color white
+			spacing 2x2 
+			effect none
+			item style font [name: "Tahoma" size: 11 colors: reduce [black black silver silver]]
+			colors [none 187.183.199] 
+			effects none
+			edge [size: 1x1 colors: reduce [none 178.180.191] effects: []]
+			action [print item/body/text]
+		]
+
+		view layout [
+			size 400x400
+			at 2x2 menu-bar menu m menu-style s
+		] 
+
+	]
+
+]
+
+{BOOL WINAPI GetCursorPos(
+  __out  LPPOINT lpPoint
+);
+
+point: make struct! [
+	x [int]
+	y [int]
+] none
+
+GetCursorPos: make routine! [
+	return: [int]
+	output [struct! []]
+] load/library %user32.dll "GetCursorPos"
+
+getcursorpos point
+? point
+
+BOOL WINAPI SetCursorPos(
+  __in  int X,
+  __in  int Y
+);
+
+;http://msdn.microsoft.com/en-us/library/windows/desktop/ms648394%28v=vs.85%29.aspx
+
+lib: load/library %user32.dll
+
+setcursorpos: routine [
+	x [int]
+	y [int]
+] lib "SetCursorPos"
+
+setcursorpos 10 10
+
+;moihahaha
+
+HCURSOR WINAPI GetCursor(void);
+
+getcursor: routine [return: [int]] lib "GetCursor"
+
+HCURSOR WINAPI LoadCursor(
+  __in_opt  HINSTANCE hInstance,
+  __in      LPCTSTR lpCursorName
+);
+
+LPCSTR is a const string
+LPCTSTR is a const TCHAR string, (TCHAR being either a wide char or char depending on whether UNICODE is defined)
+LPTSTR is a (non-const) TCHAR string
+
+loadcursor: routine [
+	return: [int]
+	hInstance [int]
+	lpCursorName [string!]
+
+
+GUISetCursor ( [cursorID [, override [, winhandle]]] )
+
+
+AU3_API long WINAPI AU3_PixelGetColor(long nX, long nY);
+
+gdi32.dll: load/library %gdi32.dll
+user32.dll: load/library %user32.dll
+GetDC: make routine! [Wnd [integer!] return: [integer!]] user32.dll "GetDC"
+GetPixel: make routine! [DC [integer!] x [integer!] y [integer!] return: [integer!]] gdi32.dll "GetPixel"
+GetDesktopWindow: make routine! [return: [integer!]] user32.dll "GetDesktopWindow"  
+
+getpixel getdc getdesktopwindow 10 10
+
+
+}
+
+;demo-styles
+
+{
+editor extract svv/vid-styles 2 ; built in widgets
+editor svv/vid-words ; layout words
+editor svv/facet-words ; adjustable properties of widgets
+svv/vid-styles/TEXT-LIST/words ; access the specific words related to individual widgets
+}
+
+to-table: func [
+	"Return a html table from tab separated string. NickA?" 
+	t /local s
+][
+	s: copy ""
+	append s reduce [<table> newline]
+	foreach row parse/all trim copy t "^/" [
+		append s <tr>
+		foreach col parse/all row "^-" [
+			append s reduce [<td> col </td>]
+		]
+		append s reduce [</tr> newline]
+	]
+	append s reduce [</table> newline]
+]
+
+clipboard-to-table: has [s][
+	write clipboard:// s: to-table read clipboard://
+	s
+] 
+
+make-request2: does [request2: do replace/all mold :request "bold" ""]
+;request2/ok/type "An alert without bold text" 'alert 
+
+;empirical-rule 68-95-99.7 for normal distributions
+
+{
+15 coins
+5 .6 chance of heads
+flip 3 times
+
+nc: 15	;coins
+nu: 4 	;unfair coins
+ch: .6	;chance of heads for unfair coins
+t: 3	;number of tosses
+
+;choose coin
+cf: nc - nu / nc	;chance of choosing a fair coin
+cu: nu / nc			;chance of choosing an unfair coin
+
+;what is the chance of getting 3 heads?
+;if it's a fair coin then it's .5 ** 3
+;however there's another chance. that it's an unfair coin and the chance of getting a fair coin is
+;cf. So that chance of getting it is .5 ** 3 * cf
+}
+
+{ctx-now: context [
+
+	;now2: now3:
+	;now2 >> "20120430173827583"
+	;now3 >> "20120430-1737" i.e. 2012 04 30
+	;These are good for naming files.
+	;These functions ensure that no two strings generated are the same.
+	;If it finds that a previous one is the same as the current one it increments one millisecond
+
+	insert-till: funct [str char len][
+		str: form str
+		head insert/dup str char len - length? str
+	]
+	
+	set 'now2 does [
+	
+		ct: now/time/precise	;current time
+		if ct = ot [
+			ct: ct + .001
+			ot: ct
+		]
+		now-time: rejoin parse form ct ":."
+		
+		rejoin [
+			fmt now/year 4
+			fmt now/month 2
+			fmt now/day 2
+			fmt now-time 9
+		]
+		
+	]
+]}
+
+reddit: funct [
+	{Open tabs with subreddit links
+	e.g. reddit [pics 10], reddit [pics funny 11 25]}
+	a "argument"
+][
+	reddit-url: join http://www.reddit.com/r/ a/1 ;subreddit
+	u: copy[]
+	t: copy[]
+	parse read reddit-url [
+		any [
+				thru {<a class="title " href="} copy url to {"} (append u to-url url) 
+				;thru {>} copy title to {</a>} (append t title)
+			| 	thru {<a class="title loggedin " href="} copy url to {"} (append u to-url url)
+				;thru {>} copy title to {</a>} (append t title)
+		]
+	]
+	l: length? a
+	switch l [
+		2 [u: copy/part u a/2]
+		3 [u: slice u a/2 a/3 - a/2 + 1] 
+	]
+	;each t [print t]
+	each u [print u browse/only u]
+]
+
+{each: func ['w b /local out] [
+		
+	out: copy []
+	emit: keep: func [a] [append out a]
+	
+	do reduce [
+		'foreach w get w append [emit] b
+	]
+]
+each: func ['w b] [collect . reduce ['foreach 'w get w b]]
+}
+
+
+;b: [something else entirely]
+;each b [keep to-file b]
+
+asteroid: funct [
+	{Calculate number of days required to shift an asteroid earth radius sideways (6e6 m)}
+	mp "mass of probe"
+	r "distance separating probe from asteroid"
+][
+
+	;Newton's Gravitational Constant g is 6.674×10-11 N m2 kg-2 (meters squared, inverse kilograms squared)
+	g: 6.674e-11
+	
+	;from newton's universal law of gravitation f= g m1 m2 / r^2
+	a: g * mp / (r * r)
+	
+	;earth radius, or necessary sideways displacement to avoid collision
+	s: 6e6
+	
+	;accelerating body s=at^2/2
+	t: square-root (s * 2 / a)
+	
+	;convert to hours, days, years
+	t / 3600 / 24 / 365
+]
+
+{asteroid: funct [mp r][
+	s: 6e6
+	g: 6.674e-11
+	t: square-root 2 * s * r * r / g / mp
+	t / 3600 / 24 / 365
+]
+
+asteroid: funct [b][
+	do b
+	default [
+		s: 6e6 			;displacement (m)
+		g: 6.674e-11	
+		m: 1e5			;mass (kg)
+		r: 1e2			;radius (m)
+	]
+	;if empty? b [return [s g m r]]
+	;print [s g m r]
+	t: square-root 2 * s * r * r / g / m
+	t / 3600 / 24 / 365
+]}
+
+default: func [b][
+	forskip b 2 [
+		if none? get b/1 [set to-lit-word b/1 b/2]
+	]
+]
+
+;default allows arguments of this kind to be convenient
+;asteroid [m: 1e5 r: 1e2]
+;asteroid []
+
+;destination d
+;>> d!: func [a][append d a]
+;>> d!+: func [a][append d a d: next d]
+;. is drop , is append current destination
+;sd: set-destination: func [s][d: s]
+
+;peel: shave: strip: thin, diet
+
+;slim already defined for objects...
+strip: funct [
+	{Strip first and last item}
+	s
+][
+	remove back tail s
+	remove head s
+]
+
+block-to-string: func [b][
+	strip mold b	
+]
+
+{probe: func [a][
+	cond: all [object? a a/type = 'face]
+	either cond [probe-face a][old-probe a]
+]}
+
+zip: funct [
+	{Zip up two series
+	[a/1 b/1 a/2 b/2 a/3 ... ]}
+	a b
+][
+	o: copy []
+	until [
+		append o first+ a
+		append o first+ b
+		all [tail? a tail? b]
+	]
+	o
+]
+
+{>> zip [1 2 3 4][a b c d]
+== [1 a 2 b 3 c 4 d]
+>> zip [1 2 3 4 5][a b c d]
+== [1 a 2 b 3 c 4 d 5 none]
+>> zip [1 2 3 4 5][a b c d e f]
+== [1 a 2 b 3 c 4 d 5 e none f]
+>>}
+
+mixin: func [b c] [
+	collect [
+		foreach b b [keep reduce [b c]]
+	]
+]
+
+
+;ZIP fn? done :) 20120507
+;>> zip [1 3 5] [2 4 6]
+;== [1 2 3 4 5 6]
+
+
+;waste-time: procrastinate: does [loop 10000 [loop 10000 []]] ;just use wait ()
+
+routine: func [specs lib id] [make routine! specs lib id]
+;cpower: routine [return: [decimal!] val [decimal!] pow [integer!] ] lib "cpower" 
+
+{
+	;Routines
+	>> probe first :cpower
+	make struct! [val [decimal!] pow [integer!] return: [decimal!]] [0.0 0]
+	>> probe second probe first :cpower
+	make struct! [val [decimal!] pow [integer!] return: [decimal!]] [0.0 0]
+	[0.0 0]
+	== [0.0 0]
+}
+
+{cast: func [value cases] [switch type?/word :value cases]}
+
+all-to: funct [type s] [
+	o: copy []
+	foreach s s [
+		append o to type s
+	]
+]
+
+{>> convert string! [2 342 34 23 423 42 34 234]
+== ["2" "342" "34" "23" "423" "42" "34" "234"]}
+
+view-fonts: funct[][
+	fonts: ["Arial" "Comic Sans MS" "Courier 10,12,15" "Franklin Gothic Medium" "Georgia" "Impact" "Lucida Console" "Lucida Grande" "Lucida Sans Demibold Roman" "Lucida Sans Regular" "Lucida Sans Unicode" "MCKoss Tiny  4" "Microsoft Sans Serif" "MS Sans Serif 8,10,12,14,18,24" "MS Serif 8,10,12,14,18,24" "Sylfaen" "Tahoma" "Times New Roman" "Trebuchet MS" "Verdana"]
+	drw: [pen black]
+	pos: 0x0
+
+	forall fonts [
+		fnt: make face/font [
+			name: fonts/1
+			size: 20
+		]
+		repend drw [
+			'font fnt 
+			'text pos fnt/name
+		]
+		pos: pos + 0x25
+	]
+
+	view center-face layout [
+		backcolor white
+		box 300x500 effect [draw drw]
+		debug
+	]
+]
+
+dump-block: funct [b] [
+	o: copy []
+	forall  b [ 
+		append o rejoin [index? b tab b/1 newline]
+	]
+]
+
+list: func [r] [
+	forskip r 20 [
+		i: index? r n: 0
+		foreach a copy/part r 20 [print [add i ++ n tab a]] 
+		if not tail? skip r 20 [input]
+	]
+]
+
+{lisp: funct [
+	{Use () instead of [] and [] instead of () }
+	str [string!]
+] [
+	r: {	[ %21	] %22	( [		) ]		%21 (	%22 )	}
+	foreach [a b] parse r none [
+		replace/all str a b
+	]
+	do str
+]
+
+
+	;lisp style code
+	windirstat: funct (/dir d) (
+		f: read wd
+		if dir (f: read-deep d)
+		remove-each f f (not dir? f)
+		o: copy () ;output
+		foreach f f (
+			if g: read-deep f (
+				print (f length? g " ")
+				repend/onlyy o (f length? g)
+			)
+		)
+		print newline
+		sort/compare o funct (a b) (
+			greater? a/2 b/2
+		)
+		foreach o o (
+			print (o/1 tab o/2)
+		)
+		o
+	)
+
+}
+
+{lisp {
+	test: funct (f) (yawp print f)
+	a: 3 b: 4
+	test {hello}
+	. a * [a + b] 
+	. a * a + b
+}}
+
+{list-files: funct [f] [
+	if string? f [f: findf f]
+	if empty? f [return []]
+	forever [
+		loop 20 [
+			print reform [index? f second split-path f/1]
+			f: next f
+			if tail? f [return head f]
+		]
+		input
+	]
+]
+
+to-blocks: funct [a] [
+	o: copy []
+	a: parse/all a "^/"
+	remove-each a a [equal? "" a]
+	foreach a a [append/only o to-block a]
+]}
+
+{to-relative: to-relative-file: func [f][second split-path clean-path f]
+
+to-relative: to-relative-file: funct [f] [
+	either block? f [
+		out: copy []
+		foreach f f [append out to-relative f]
+	] [
+		f: clean-path f
+		replace f wd ""
+	]
+]}
+
+{to-lines: funct [b] [
+	o: copy []
+	foreach b b [
+		append o b
+		append o newline
+	]
+	form o
+]
+
+;to-lines: funct [b] [form each b [repend o [b newline]]]
+
+list: funct [f /files] [
+	if files [
+		if string? f [f: findf f] 
+		if empty? f [return []]
+	]
+	forever [
+		b: copy/part f 20
+		if files [b: to-relative b]
+		print to-lines b
+		f: skip f 20
+		if tail? f [return head f]
+		input
+	]
+]}
+
+;to-absolute: to-absolute-file: :clean-path
+
+;Forth, Do-next, flatten and other distractions
+
+{switchboard-of: func [face][
+	make-face 'area forth [face 'feel in get 'engage in get second [switch act] select]
+]}
+
+
+{do-next: func [a][
+	until [
+		set [r a] do/next a
+		push r
+		empty? a
+	]
+]}
+
+{do*: func [b][
+	until [
+		set [a b] do/next b
+		empty? b
+	]
+	a
+]}
+
+{do-next [
+	readd user-dir
+	. search it "some"
+]}
+
+{
+	;comparison of forth and do-next functions
+
+	;do-next 
+	[make-face 'area get in it 'feel second get in it 'engage select it [switch act] select it [key]]
+	;forth 
+	['area make-face 'feel in get 'engage in get second [switch act] select [key] select]
+
+	Benefits of the do-next function over the forth function.
+	It is more readable
+	It is not a dialect so it doesn't reduce any of rebol's power
+}
+
+
+{demo-stack: does [
+	forever [push do input]
+	readd wd
+	. search pop "some"
+]}
+
+{type*: func [v [block!]] [
+	t: type? v/1
+	if word? v/1 [t: type? get v/1]
+	if path? v/1 [t: type? get first v/1]
+	t
+]
+
+test-type*: does [
+	o: copy []
+	v: [2 "hello" 'word 'something/weird append insert alias copy/part %hello %/e/video/ [yawp] rebdir/home]
+	shouldbe: reduce [integer! string! lit-word! lit-path! function! action! native! action! file! file! block! file!]
+	forall v [append o type* v]
+
+	if o = shouldbe [print "SUCCESS"]
+]}
+
+
+{args-of: funct [fn][
+	copy-till: funct [s v][
+		if s1: find s v [return copy/part s s1]
+		s
+	]
+	negate length? copy-till first :fn refinement!
+]
+;types: [2 "hello" 'word 'something/weird append insert alias copy/part %hello %/e/video/ [yawp] rebdir/home] ;'word 
+}
+
+copy-till: funct [s v][
+	if s1: find s v [return copy/part s s1]
+	s
+]
+
+func?: funct [v][
+	af?: any-function? v/1
+	if word? v/1 [af?: any-function? get v/1]
+	if path? v/1 [af?: any-function? get first v/1]
+	af?
+]
+
+;OMG finally got it working
+args-of: args: funct [v [block!]][
+	if word? v/1 [
+		a: first get v/1 ;args
+		return copy-till a refinement!
+	]
+	if path? v/1 [
+		o: copy []
+		a: first get first v/1
+		a: copy-till a /local
+		append o copy-till a refinement!
+		refs: next v/1
+		foreach r refs [
+			if a1: find/tail a to-refinement r [
+				append o copy/part a1 any [find a1 refinement! tail a1]
+			]
+		]
+		return o
+	]		
+]
+
+;>> args [copy/part]
+;== [value range]
+
+mul: :multiply
+div: :divide
+sub: :subtract
+
+;OMG!!!
+forth: funct [v] [
+	stack: copy []
+	forall v [
+		either func? v [
+			a: args-of v
+			args: take/last/part stack length? a
+			r: head insert/only args v/1
+			repend stack r
+			
+		][
+			append/only stack v/1
+		]
+	]
+	head stack
+]
+;forth [2 34 23 42 34 2 3 add add [2 34 234 234] 2 copy/part]
+;forth [2 34 23 4 add mul div . 434 div 334 sub]
+
+forth-shell: does [forever [do forth load/all ask "forth>> "]]
+
+forth-to-rebol: [
+	. probe
+	+ add
+	- subtract
+	/ divide
+	* multiply
+]
+
+forth-func: forth-func: ffunc: forthf: func [spec body] [
+	make function! spec reduce [
+		'do 'forth body
+	]
+]
+
+do-next: funct [b][
+	o: copy []
+	b: reduce [[] b]
+	;[result remaining-code]
+	until [
+		b: do/next b/2 ;result
+		append o b/1
+		empty? b/2
+	]
+]
+
+{;for testing do-next
+b: [
+	view/new layout [f1: area]
+	unview
+	a: get in f1 'feel
+	a: get in a 'engage
+	a: select second a [switch act]
+]
+
+test-do-next: does [
+
+	view/new layout [f1: area]
+	unview
+	
+	;Do Next demo :)
+	b: [
+
+		get in it 'feel
+		get in it 'engage
+		select second it [switch act]
+		select it [key]
+		append it [yawp]
+	]
+
+	;stack return-stack
+	a: reduce [[] b]
+	;[result remaining-code]
+	until [
+		a: do/next a/2 ;result
+		. a
+		it: does [first a]
+		input
+		empty? a/2
+	]
+]}
+
+
+{flat: funct [arg][
+
+	s: parse-lines arg
+
+	o: copy ""
+	forall s [
+		insert o s/1 
+		insert o " ["
+		append o "]"
+	]
+	do o
+]
+
+
+flat [
+     print rejoin s b: b - 1
+     loop-line n
+     foreach [n s] s
+]
+== [
+	foreach [n s] s [
+		loop-line n [
+			print rejoin s b: b - 1
+		]
+	]
+]}
+
+find-first: find-part: find1: func [s q "query"][
+	q: form q
+	q: parse q none
+	forall s [
+		if foreach q q [
+			if not find to-string s/1 q [break/return no]
+			yes
+		][
+			break/return s
+		]
+	]
+	s
+]
+
+{search: funct [b query] [
+	q: form query ;for literals
+	if empty? q [return b]	
+	b: copy b 
+	foreach q parse q none [
+		either #"-" = q/1 [
+			q: remove q
+			remove-each b b [find/any to-string b q]
+		][
+			remove-each b b [not find/any to-string b q]
+		]
+	]
+	b
+]}
+
+{
+	open-filesystem f
+	this opens a file and parses the first part from [ to ]
+
+
+}
+
+;cool idea, convert to flac
+
+can: :attempt
+
+
+{	;Ideas
+	filesystem
+	forth
+	picture viewer
+	random video watcher
+	sleep computer after a while
+	classy gui design
+	file viewer - explorer
+	grapher
+	interface the humane interface type thing to marry all these together
+	mp3 player - shuffle
+}
+
+;doesn't seem to work on view words
+;doesn't work on insert-event-func
+
+
+{;import-dll %/c/tcc/cfuncs.c
+
+import-dll: funct [f][
+	{
+		;Doesn't work :(
+		Give it a file f. It'll compile it into a dll. 
+		It will then convert the lines starting with DLL_EXPORT to rebol routines so you can import them.
+		e.g. DLL_EXPORT double cpower(double val, unsigned pow) 
+		==> cpower: make routine! [val [decimal!] pow [integer!] return: [decimal!]] library "cpower"
+		Returns routines in a block
+		
+		You need to download Tiny C compiler and put your c dll file in the same dir as tcc.exe, and be in the directory that has tcc.exe in it
+	}
+	
+	c-to-rebol: [		
+		char 	char!
+		;added
+		unsigned	integer!
+		signed	integer!
+		;end added
+		short 	integer!
+		long 	integer!
+		int 	integer!
+		float 	decimal!
+		double 	decimal!
+		struct 	struct!
+		char 	string!
+	]
+
+	rebol-to-c: [
+		char! 		char
+		integer! 	long
+		decimal! 	double
+		struct! 	struct
+	]
+
+	;cd %/c/tcc/
+	;f: %cfuncs.c
+	
+	old-dir: wd
+	cd first split-path f
+
+	;compile and load dll using tiny c compiler (tcc)
+	call join "tcc -shared " to-local-file f	;
+	dll: replace-suffix f %.dll
+	lib: load/library dll
+
+	;get c declation lines
+	lines: copy [] ;functions
+	foreach l read/lines f [
+		if find/match l "DLL_EXPORT" [append lines l]
+	]
+
+	;parse c declations
+	o: copy []
+	foreach line lines [
+		parse line [
+			thru "DLL_EXPORT "
+			copy a to "("
+			thru "(" copy b to ")"  (
+				if none? a [a: ""]
+				if none? b [b: ""]
+				b: replace/all b "," " "
+				a: append to-block a to-block b
+				append/only o a
+			)		
+		]
+	]
+
+	;make block of routines code from parsed c declarations
+	routines: copy []
+	foreach o o [
+		return-type: o/1
+		function-name: o/2
+		spec: copy []
+		foreach [type arg] at o 3 [
+			append spec arg
+			append/only spec to-block select c-to-rebol type
+		]
+		repend spec [
+			to-set-word 'return to-block select c-to-rebol return-type
+		]
+		
+		append routines reduce [
+			to-set-word function-name 'make 'routine! spec lib form function-name
+		]
+	]
+	cd old-dir
+	do routines
+]}
+
+
+modify: func [str][
+
+	x: parse/all trim str "^/,"
+	forall x [x/1: to-block x/1]
+
+	insert head x/1 [it:]
+	x: next x
+	forall x [insert at x/1 2 [:it] insert head x/1 [it:]]
+	x: head x
+	
+	out: copy []
+	forall x [append out x/1]
+	do load out
+]
+
+{	
+	;Example of Modify
+
+	view/new layout [f1: area] unview
+	yawp: does [print "yawp!"]
+
+	modify {
+		get in f1/feel 'engage
+		second
+		select [switch act]
+		select [key]
+		append [yawp]
+	}
+
+	it: get in f1/feel 'engage
+	it: second it
+	it: select it [switch act]
+	it: select it [key]
+	it: append it [yawp]
+	
+	;Except for the first line, only one function is allowed per line.
+	;The continuous variable is inserted into the second place of the line
+	;in our example the variable's name is "a"
+}
+
+do-it: func [
+	{Sets expressions to the variable it. 
+	For when you don't want to have to think of set words.}
+	arg
+][
+	until [
+		set [it arg] do/next arg
+		empty? arg
+	]
+	it
+]
+
+{do-it [
+	make-face 'area	 
+	get in it 'feel  
+	get in it 'engage  
+	second :it
+	select it [switch act]  
+	select it [key]
+]}
+
+{;seems quite good this
+;it is the result of the last expression
+shell: does [
+	forever [
+		set/any 'it attempt [do ask ">> "]
+		insert/only stack it
+		if value? 'it [
+			prin "== " 
+			case [
+				series? it	[print copy/part mold it 200 it]
+				object? it	[? it it]
+				true		[probe it]
+			]
+		]
+	]
+]}
+
+calculate-pi: funct [][
+	pi: 0
+	for k 2 1000'000 4 [
+		pi: pi + (1 / (k - 1)) - (1 / (k + 1))
+	]
+	4 * pi
+]
+
+
+;make random binary blob 
+;bin: loop 1'000 [append #{} to-32bit random to-integer 2 ** 30]
+
+{try-probe: func [b][
+	either error? err: try b [
+		probe disarm err
+	][
+		err
+	]
+]}
+
+{
+	;Get Modes 
+	
+	>> f: read wd
+	== [%$AVG/ %$Recycle.Bin/ %20101208/ %AMD/ %autoexec.bat %avira_antivir_personal_en.exe %Backup/ %bl
+	ob %Bookmark/ %Bookmarks.txt %B...
+	>> m: get-modes f/1 'file-modes
+	== [creation-date access-date modification-date owner-write archived hidden system]
+	>> get-modes f/1 m
+	== [creation-date: 22-Sep-2011/9:28+10:00 access-date: 3-Apr-2012/22:44:56+10:00 modification-date:
+	22-Sep-2011/9:28+10:00 owner-wr...
+	
+	;Also try
+	get-modes f/1 -hidden
+	get-modes f/1 'port-modes
+	get-modes f/1 [file-modes: none] ;if you want an object kind of thing
+
+	[file-modes port-modes network-modes]
+}
+
+
+
+
+;try-probe or try2 is just a softer way of handling mistakes. Instead of halting execution it just prints the error and continues about its day.
+
+
+;GET-MODES supports a few special modes which return a list of applicable modes for a port. They are: file-modes, copy-modes, network-modes, and port-modes. If any of these modes are specified in a 
+;http://www.rebol.com/docs/words/wget-modes.html
+
+
+;rd: does [read-deep what-dir]
+
+;blob blob/deep  takes a namespace and produces a single file
+
+
+;use to-integer to convert 32 bit binary value to integer
+
+;Blob File System
+
+;In testing. Didn't work for rebol.r
+
+{write-blob: func [bin][
+	if file? bin [bin: read/binary bin]
+	write/binary/append %/c/blob join to-32bit length? bin bin
+]
+
+read-blob: funct [n][
+	blob: open/read/binary %/c/blob
+	loop n - 1 [
+		sz: to-integer copy/part blob 4
+		blob: skip blob sz + 4
+	]
+	sz: to-integer copy/part blob 4
+	var: slice blob 5 sz
+	close blob
+	var
+]}
+
+{	;Filesystem Shit
+
+	cd %/C/Users/Kostoglotov/Rebol/filesystem/
+
+	f: read wd
+	o: offsets: []
+	fs: #{}
+	forall f [
+		append o 1 + length? fs
+		append fs read/binary f/1
+		append o length? fs
+	]
+
+	n: 3
+	slice fs o/(2 * n - 1) o/(2 * n)
+	
+	;names 
+	;offsets
+	;binary
+
+}
+
+;random1: func [b][first random b]
+
+
+;===bookmark 20120829
+
+;standard ports script user wordss network schemes etc.
+
+{slice: func [s a b] [
+	copy/part at s a b
+]
+
+slice-to: func [s a b][
+	slice s a b - a + 1
+]}
+
+
+{s[lo:hi]
+
+evaluates to a slice of the elements from lo through hi-1, inclusive. Thus
+
+s[lo:lo]
+
+is empty and
+
+s[lo:lo+1]
+
+has one element. }
+
+
+
+;>> slice-to [1 2 3 4 5 6 7 8 9] 2 7
+;== [2 3 4 5 6 7]
+
+scrn: func [b][
+	o: copy [system view screen-face]
+	foreach b b [
+		append o [pane]
+		append o b
+		
+	]
+	do to-path o
+]
+
+;scrn [1 1] 
+;>> system/view/screen-face/pane/1/pane/1
+
+select-between: func [v] [
+	trim copy/part
+	any [find/reverse rv/caret v head rv/caret]
+	any [find rv/caret v tail rv/caret]
+]
+
+google-blue-color: 17.85.204
+;use with varying levels of grey text #{333333}, #{666666}, etc.
+
+clip-now-filename: does [
+	write clipboard:// now-file
+]
+
+probe-face: func [obj /with w][
+	if none? w [w: []]
+	foreach name append [facets feel type offset size text color edge font para options show? old-offset old-size face-flags state flags parent] w [
+		attempt [
+			prin join name ": " probe get in obj name
+		]
+	]
+]
+
+{probeface: fucn (obj /with w )(
+	if none? w (w: ())
+	foreach name append (facets feel type offset size text color edge font para options)
+		attempt (prin join name ": " probe get in obj name))
+}
+			
+			
+
+
+
+
+
+
+
+
+
+;alias 'probe-face "probeface"
+;alias 'probe-face "probefac"
+;alias 'probe-face "probef"
+
+{;test probe-face
+probe-face f1
+probe-face/with f1 [parent-face]
+}
+
+
+
+default: func ['var val][if none? var [set var val]]
+;Set variable to this value if it is none
+;Useful in functions with refinement variables
+
+
+;kr: does [kill "rebol.exe"] ;don't seem to use this
+
+replace-all: func [sth specs][
+	foreach [a b] specs [
+		replace/all sth a b
+	]
+]
+
+
+grad: gradient: func [p][p/y / p/x]
+fit: func [a b][
+	if greater? grad a grad b[
+		return as-pair b/y * a/x / a/y  b/y
+	]
+	as-pair b/x b/x * grad a
+]
+
+dictionary: does [do %dictionary.r]
+
+clr: does [clear stack]
+stacks: []
+save-stack: savestack: does [append/only stacks stack]
+
+;trim/auto entab
+
+entab-function: func [s] [
+	editor entab trim/auto s
+	;trim/auto "Auto indents lines relative to first line."
+	;entab "Converts spaces in a string to tabs. (tab size 4)"
+]
+
+removeifdir: func [b][remove-each b b [dir? b]]
+removeifnotdir: func [b][remove-each b b [not dir? b]]
+readf: func [dir /local f] [
+	removeifdir read dir
+]
+
+restart: does [
+	call "shutdown /r /f /t 0"
+]
+
+shutdown: does [
+	call "shutdown /s /f /t 0"
+]
+
+{shutdownin: shutdown-in: shutdown-after: shutdownafter: func [t] [
+	call join 
+		"shutdown /s /f /t " 
+		to-integer t
+]}
+
+
+viewfiles: func [d /local win ef tl] [
+	win: layout [origin 0 tl: text-list data d [call value]]
+	handle [
+		resize [tl/resize win/size show tl]
+		close [removeeventfunc :ef]
+	]
+	viewr win
+]
+
+
+updir: does [
+	cd %../
+]
+
+{rd: does [
+	read wd
+]
+
+rdd: does [
+	readd wd
+]
+
+reds: func [file][
+	do/args %rsc.r join %tests/ file
+]
+
+options: opts: so: :system/options
+
+bb: binary-base: func [n] [
+	system/options/binary-base: n
+]}
+
+;Binary handling is all about the to-char function
+to-bin: :to-char
+
+enbase2: func [a] [enbase/base a 2]
+to-byte: func [n] [to-binary to-char n]
+bitpattern: func [n] [enbase2 to-binary to-char n]
+
+calculator: does [
+	forever [
+		attempt [probe reduce parse-math ask "calculator>> "]
+	]
+]
+
+;Advanced Console Operations
+;http://www.rebol.com/docs/core23/rebolcore-18.html
+{run: funct [] [
+	forever [
+		files
+		attempt [
+			r: results: search files ask "run>> "
+			either 1 = length? r [
+				call r/1
+			] [
+				list sortd copy/part r 10
+			]
+		]
+	]
+]
+
+play: :run}
+
+{callf: func [q] [
+	call1 search readd dirs q
+]}
+
+{;fit image inside it's parent-face size
+
+;example of syntax block
+[0 0 -2 3 0 0 1 0]
+;zero means takes no args -2 means it takes 2 args from the stack, 3 means it expects three 
+
+[dirs readd "maverick" search callrandom] 
+
+; enface - load data into a face
+
+user: %/c/users/kostoglotov/
+imgdir: user/%pictures/
+
+rimg: randimg: random-image: randomimage: does [
+	f: readd imgdir
+	pick f random length? f
+]
+
+pickr: pick-random: func [b] [
+	pick b random length? b
+]
+
+fffiles: refresh-fffiles: has [f] [
+	f: readd dirs
+	rm f [dir? f]
+	fffiles: f
+]
+{ff: findf: find-file: func [q /local f] [
+	f: fffiles
+	pickr search f form q
+]}
+
+pick-random: func [b] [
+	pick b random length? b
+]
+findfiles: func [arg /local f] [
+	search read wd form arg
+]
+findfiles: func [arg /local f] [
+	pickrandom findfile arg
+]
+
+;vid video, rvid refresh-video / read-video
+vid: rvid: randvid: random-video: has [f] [
+	f: readd downloads
+	rm f [not find video-suffix suffix? f]
+	vid: f
+]
+
+pik: func [n b] [
+	pick b n
+]
+
+copyp: func [n b] [
+	copy/part b n
+]
+
+;splitp: :split-path
+
+findp: find-part: findpart: find1st: firstfirst: first-first: find1: reveal: uncover: func [f q] [
+	forall f [
+		if find f/1 q [break/return f]
+	]
+]
+
+to-int: :to-integer}
+
+
+access: func [s] [
+	readd cd join usr dirize to-file s
+]
+
+;access 'pictures
+
+search-prototype: [
+	q: ["ce" "in"]
+	o: copy []
+	foreach w words [
+		w: form w
+		if all [
+			w: find/tail w "ce"
+			w: find/tail w "in"
+		] [
+			append o head w
+		]
+	]
+]
+
+set?: :value?
+
+words: does [words: reverse first system/words]
+
+inches-to-centimeters: func [n] [n * 2.54]
+centimeters-to-inches: func [n] [n / 2.54]
+
+{randgreen: has [c] [
+	255.255.255 random 
+	second pop first 2* push >=
+	second pop third 2* push >=
+	and untilp
+]
+
+255 255 255 random
+second first 2* greater? }
+
+{255.255.255 random n !
+n 2 + @ second first 2* greater? pop
+second third 2* greater? push and if }
+
+{: fahrenheit-celsius 32 - 5. 9 /* .1 roundto ;}
+
+{first 2* pop second push greater? pop
+third 2* pop second push greater? push and if }
+
+
+
+
+random-red: has [c] [
+	until [
+		c: random 255.255.255 
+		all [
+			c/1 >= (2 * c/2) 
+			c/1 >= (2 * c/3)
+		]
+	]
+	c
+]
+
+random-blue: has [c] [
+	until [
+		c: random 255.255.255 
+		all [
+			c/3 >= (2 * c/1) 
+			c/3 >= (2 * c/2)
+		]
+	]
+	c
+]
+
+;0.147.0 nice green color
+
+;forn 20
+
+;fitx fity
+
+topng: does [join nowf %.png]
+
+fahrenheit-celsius: funct [t] [
+	t: round/to multiply 5. / 9 t - 32 .1
+]
+{for fahr 0 300 20 [
+	print [fmt fahr 3 fmt fahrenheit-celsius fahr 8]
+]}
+
+tahoma-bold: make object! [
+    name: "Tahoma"
+    style: 'bold
+    size: 12
+    color: silver
+    offset: 2x2
+    space: 0x0
+    align: 'center
+    valign: 'middle
+    shadow: 0x0
+    colors: reduce [silver 255.180.75]
+]
+
+lucinda-grande: make face/font [
+	name: "Lucinda Grande"
+	;size: 40
+]
+
+{;superceded by picture?
+imagef?: image-file?: func [f] [
+	;if dir? f [return false]
+	image-suffix: [%.jpg %.jpeg %.png %.bmp]
+	find image-suffix suffix? f
+]}
+
+;append-file
+;insert-file
+
+{form-file: formf: func [p] [
+	p: form copy p
+	replace/all p "/" " - "
+]}
+
+;make command-face style. No autocomplete necessary for first draft
+
+;load-file
+;save-file
+;file-system
+
+
+
+{foreach f f [do this]
+rp f [do this]
+remove-each f f [when true]
+rm f [when true]
+}
+
+{;load, save rebol binaries enables saving multiple binary files inside one file. 
+This can be useful for storing files that you don't want to have to index. 
+email multiple files without zipping them. 
+There's probably other applications...?
+Oh, this is a more efficient way of packing a rebol script with its binary 
+files into one file. This way you can include pictures and data and a rebol file all in the same package
+while maintaining a small file size.
+Can be used like a directory. 
+It's the start of a filesystem I suppose.
+
+}
+
+blob: funct [dir][
+	out: copy []
+	f: read dir
+	rm f [dir? f]
+	foreach f f [
+		bin: read/binary f
+		append out to-32bit length? bin
+		append out bin
+	]
+]
+
+unblob: funct [f][
+	blob: open/read/binary f
+	out: copy []
+	until [
+		sz: to-integer copy/part blob 4
+		append out copy/part blob 4
+		append out slice blob 5 sz
+		blob: skip blob sz + 4
+		tail? blob
+	]
+	close blob
+	out
+]
+
+to-32bit: func [int] [
+	do rejoin ["#{" form to-hex int "}"]
+]
+
+
+to-32bit: to32bit: func [n] [
+	do rejoin ["#{" form to-hex n "}"]
+]
+
+save-binary: funct [f b [block!]] [
+	o: copy []
+	foreach b b [
+		append o to-32bit length? to-binary b
+		append o to-binary b
+	]
+	write/binary f rejoin o
+]
+
+
+
+load-binary: funct [f] [
+	f: read/binary f
+	out: copy []
+	while [not tail? f] [
+		l: to-integer take/part f 4
+		value: take/part f l
+		append out value
+		
+	]
+	out
+]
+
+{size-dir?: dir-size?: funct [d] [
+	f: read d
+	sz: 0 
+	foreach f f [sz: sz + size? f]
+]}
+
+
+init-capslock: does [
+		if not value? 'user32.dll [
+		user32.dll: load/library %user32.dll
+	]
+	if not value? 'GetAsyncKeyState [
+		GetAsyncKeyState: make routine! [
+			vKey [int]
+			return: [int]
+		] user32.dll "GetAsyncKeyState"
+	]
+]
+capslock-state: 'up
+capslock-event?: capslock?: func [][
+	n: GetAsyncKeyState 20
+	state: either zero? n ['up] ['down]
+	if state <> capslock-state [
+		capslock-state: state
+	]
+]	
+
+
+;>> dt [loop 1000'000 [if s: capslock-event? [. s]]]
+;== 0:00:03.333
+
+
+;Import windows functions
+import-windows-functions: does [
+
+	user32.dll: load/library %user32.dll	
+	kernel32.dll: load/library %kernel32.dll
+
+	;Get Key State Documentation
+	;http://msdn.microsoft.com/en-us/library/ms646293(v=VS.85).aspx
+	;f12 is 123
+	;shift 10
+	;control 11
+	;alt 12
+	;capslock 14
+	
+	get-async-key-state: make routine! [
+		vKey [int]
+		return: [int]
+	] user32.dll "GetAsyncKeyState"
+
+	get-key-state: make routine! [
+		vKey [int]
+		return: [int]
+	] user32.dll "GetKeyState"
+
+	virtual-key: VK: [
+		left-mouse 1
+		right-mouse 2
+		middle-mouse 4
+		shift 16
+		control 17
+		alt 18
+		pause 19
+		capslock 20
+		left-alt 164
+		right-alt 165
+	]
+
+	MoveFileA: make routine! [
+		lpExistingFileName [string!]
+		lpNewFileName [string!]
+		return: [int]
+	] kernel32.dll "MoveFileA"
+	
+	move-file: func [f t] [
+		f: to-local-file clean-path f
+		t: to-local-file clean-path t
+		MoveFileA f t
+	]
+	
+	move-files: func [f td][
+		foreach f f [
+			move-file f join td second split-path f
+		]
+	]
+		
+]
+
+
+{;dangerous, untested
+flatten-dir: funct [] [
+	f: read-deep wd
+	remove-each f f [not dir? f]
+	foreach f f [
+		move-file 
+		to-local-file clean-path f 
+		to-local-file join wd second split-path f
+	]
+]}
+
+
+
+{call-random: funct [b] [
+	call first random b
+]
+
+
+remove-dirs: funct [f] [
+	remove-each f f [dir? f]
+]}
+
+capture-screen: does [
+	do rebdir/capture-screen.r
+]
+
+{;doesn't work, always asks for permission, even after setting secure to none
+sleep: funct [wt "(mins) wait time"] [
+	wt: 1000 * 60 * to-integer  wt
+	call/console rejoin ["nircmd.exe cmdwait " wt " monitor off"]
+]}
+
+kill: funct [image-name] [
+	call rejoin ["taskkill /f /im " image-name]
+]
+
+kr: does [kill "rebol.exe"]
+
+;kill "rebol.exe"
+
+;call {taskkill /f /fi "STATUS eq NOT RESPONDING"}
+
+get-line: does [
+	trim copy/part
+	any [find/reverse sv/caret lf head sv/caret]
+	any [find sv/caret lf tail sv/caret]
+]
+
+hilight-line: funct [] [
+	line: trim copy/part 
+	sv/highlight-start: any [find/reverse sv/caret lf head sv/caret]
+	sv/highlight-end: any [find sv/caret lf tail sv/caret]
+	sv/caret: sv/highlight-end
+	show sv/focal-face
+	line
+]
+
+hilight-tab: funct [] [
+	line: trim copy/part 
+	sv/highlight-start: any [find/reverse sv/caret tab head sv/caret]
+	sv/highlight-end: any [find sv/caret tab tail sv/caret]
+	sv/caret: sv/highlight-end
+	show sv/focal-face
+	line
+]
+
+{get-links: funct [text] [
+	out: []
+	rule: [
+		thru {<A HREF="}
+		copy url to {"}
+		thru {">}
+		copy description to {</A>}
+		(unless none? url [append out url])
+		;(repend out [url description])
+	]
+
+	parse text [any rule]
+	out
+]}
+
+get-links: funct [text] [
+	out: []
+	rule: [
+		to {"http://} thru {"}
+		copy url to {"} thru {"}
+		(unless none? url [append out url])
+
+	]
+
+	parse text [any rule]
+	out
+]
+;list get-links read http://www.reddit.com/r/all
+
+{notepad: does [
+	in-dir rebdir [
+		call %notepad.r
+	]
+]}
+
+;small box inside big box. 
+;Calculates the offset of the small box to center it
+;center: func [s b] [b - s / 2]
+
+{view-image: funct [file] [
+	win: layout [
+		origin 0 
+		fac: image load file effect [aspect]
+	]
+	handle [
+		resize [
+			fac/size: win/size
+			show win
+		]
+	]
+	view/options win [resize]
+]}
+
+{GET IMAGE SIZE FUNCTION
+Aspect or get-image-size returns the size of a face that is fit inside another face while maintaining its aspect ratio. It takes two sizes of pair! datatype as its arguments. 
+
+Shrink does the same think but only if the 'inner' face is too large. If it is smaller than the 'outer' or limiting face then it returns the size of the image unaltered.
+}
+
+{aspect: funct [a b "max size"] [
+	a * first minimum-of reduce [
+		b/x / a/x	b/y / a/y
+	]
+]
+
+fit-image: func [i /local sz mx] [
+	sz: i/image/size
+	mx: i/parent-face/size
+	if inside? mx sz [return none]
+	i/size: aspect sz mx	
+	show i
+]}
+
+;get-image-size: :aspect
+
+shrink: func [sz mx] [
+	if inside? mx sz [return sz]
+	aspect sz mx
+]
+
+image-offset: func [sz mx] [
+	max 0x0 mx - sz / 2
+]
+
+center-image: function [f "face"] [lim] [
+	lim: f/parent-face/size
+	f/size: aspect f/size lim
+	f/offset: max 0x0 lim - f/size / 2
+]
+
+parself: func [s] [
+	parse/all s "^/"
+]
+
+;rebol/options/boot
+;join {c:\rebol\rebol.exe -s c:\rebol\slideshow-new.r } ff
+
+the-last: func [s n] [
+	skip tail s negate n
+]
+
+make-thumb: funct [file] [
+	if attempt [i: load file] [
+		sz: shrink i/size 200x200
+		thumb: to-image layout/tight [
+			origin 0 
+			image i sz
+			effect [aspect blur]
+		]
+	]
+]
+
+make-thumbs: func [src dst] [
+	
+	src: clean-path src
+	dst: clean-path dst
+	cd src
+	make-dir dst
+	
+	f: read-suffix [%.jpg %.jpeg %.png %.bmp]
+	foreach f f [
+		if thmb: make-thumb f [
+			save/png join dst f thmb
+		]
+	]
+]
+
+;make-thumbs wd %thumbs/
+
+viewr: func [w] [
+	view/options/title w [resize] "Test"
+]
+
+;WOW
+;>> do func [a b] [a + b]  2 3
+;== 5
+
+
+extend: func ['obj 'fn] [
+	do reduce [
+		to-set-word obj 'make obj 'compose [
+			(to-set-word fn)
+			get in system/words fn
+		]
+	]
+]
+;extend obj word
+
+old: context []
+backup: func ['w] [
+	old: make old compose [
+		(to-set-word w)
+		get in system/words w
+	]
+]
+
+
+{Backup moves a word to the ctx-backup context.}
+
+ctx-backup: context []
+backup: func ['w] [
+	ctx-backup: make ctx-backup compose [(to-set-word w) get in system/words (to-lit-word w)]
+	unset w
+]
+;doit: does [print "it"]
+;backup 'doit
+
+
+
+;backup word
+;extends the old context to include this word
+
+;alpha
+for-pair: matrix: grid: func ['w1 'w2 start end bump body] [
+	do reduce [
+		'for w1 start/y end/y bump/y reduce [
+			'for w2 start/x end/x bump/x body
+		]
+	]
+]
+;for-pair p q 0x0 100x100 10x10 [print [as-pair p q]]
+
+{;awesome
+make-thumbnails: funct [/loud] [
+	f: scan [%.jpg %.jpeg %.png %.bmp]
+	make-dir %rebol-thumbnails
+	foreach f f [
+		if loud [probe f]
+		if th: make-thumbnail f [
+			save/png join %rebol-thumbnails/ f th
+		]
+	]
+]}
+
+first-: func [
+    {Return FIRST of series, and increment the series index.}
+    [catch]
+    'word [word! paren!] "Word must be a series."
+][
+    if paren? :word [set/any 'word do :word]
+    throw-on-error [also pick get word 1 set word back get word]
+]
+
+load-until: func [files] [	
+	until [attempt [load first+ files]]
+]
+
+bad-image: attempt [%/e/images/1215815883934vh6.jpg]
+
+;read-video: does
+
+replace-suffix: func [f s] [
+	f: copy f 
+	clear find f s? f
+	append f s
+]
+
+remove-suffix: func [f][
+	replace-suffix f ""
+]
+
+{http://thesaurus.com/browse/read
+Main Entry:	read
+Part of Speech:	verb
+Definition:	look at and understand written word
+Synonyms:	 apprehend, bury oneself in, comprehend, construe, 
+decipher, dip into, discover, flip through, gather, glance, 
+go over, go through, interpret, know, leaf through, learn, 
+make out, perceive, peruse, pore over, refer to, scan, 
+scratch the surface, see, skim, study, translate, unravel, view}
+
+{Each is a time saving function where
+foreach f f [sth with f] is equivalent to 
+each f [sth with f]. The local var is set 
+to same name as larger var}
+
+windirstat: funct [/dir d] [
+	
+	f: read wd ;files
+	if dir [f: read-deep d]
+	remove-each f f [not dir? f]
+
+	o: copy [] ;output
+	foreach f f [
+		if g: read-deep f [
+			prin [f length? g " "]
+			repend/only o [f length? g]
+		]
+    ]
+	print newline
+	sort/compare o func [a b] [
+		greater? a/2 b/2
+	]
+	foreach o o [
+		print [o/1 tab o/2]
+	]
+	o
+]
+
+form-file: funct [f] [
+	f: second split-path clean-path f 
+	replace/all f "." " " 
+	to-string f
+]
+
+;author Carl Sassenrath
+copy-file: func [
+    "Copy a file. Return WORD for failure or return optional checksum."
+    from [file!]
+    dest [file!]
+    /sum "checksum the data"
+    /local
+    data
+    path
+    ff ; from file port
+    tf ; to file port
+][
+    path: split-path dest
+
+    foreach [block err-word] [
+        [make-dir/deep path/1] dir-failed
+        [ff: open/binary/read/seek from] read-failed
+        [tf: open/binary/write dest] write-failed
+        [if sum [sum: open [scheme: 'checksum]]] sum-failed
+        [
+            while [not tail? ff] [
+                ;print index? ff
+                data: copy/part ff 100000
+                insert tail tf data
+                if sum [insert sum data]
+                ff: skip ff length? data
+            ]
+            ;print index? ff
+        ] copy-failed
+    ][
+        if error? try block [
+            if port? sum [close sum]
+            if tf [close tf]
+            if ff [close ff]
+            return err-word
+        ]
+    ]
+
+    data: none
+    if sum [
+        update sum
+        data: copy sum
+        close sum
+    ]
+    close tf
+    close ff
+    data ; checksum value or none
+]
+
+copy-dir: funct [dst] [
+	make-dir dst
+	f: read wd
+	remove-each f f [dir? f]
+	foreach f f [
+		copy-file f join dst to-relative-file f
+	]
+]
+
+backup-dir: funct [] [
+	d: make-dir now-file
+	copy-dir d
+	d
+]
+
+;==========================thumbnails
+
+;resize size to within 200x200
+resize: funct [s][
+	wide?: s/x > s/y
+	f: divide pick reduce [s/x s/y] wide? 200
+	as-pair s/x / f s/y / f
+]
+
+to-thumbnail: func [i][
+	resize: funct [s][
+		wide?: s/x > s/y
+		f: divide pick reduce [s/x s/y] wide? 200
+		as-pair s/x / f s/y / f
+	]
+	to-image layout/tight [origin 0 image i resize i/size effect [aspect blur]]
+]
+
+;==========================
+
+find-any: func [b q] [
+	foreach b b [if find b q [break/return b]]
+]
+
+fail?: :none?
+
+{view-gif: funct [fn][
+	g: load fn
+	layout [b: image g/1]
+	view/new center-face b
+
+	forever [
+		wait 1 / 15
+		draw b/image [image g/1]
+		g: rotate g
+		if head? g [draw b/image compose [image (first head g)]]
+		
+		show b
+	]
+]
+
+viewgif: func [fn][
+	g: load fn
+	draw-gif: does [
+		draw b/image [image g/1]
+		g: rotate g
+		if head? g [draw b/image compose [image (first head g)]]
+		show b
+	]
+	view center-face layout [
+		origin 0
+		b: image g/1 [g: load first request-file]
+		timer -20x-20 rate 15 [draw-gif]			
+	]
+]
+;viewgif ff "02" ;ff find-file
+
+gif-player: does [
+	g: load request-file/only/keep
+	layout [
+		f: image effect [aspect] g/1 [
+			g: load request-file/only/keep
+			f/image: g/1
+			f/size: g/1/size 
+			show f
+		]
+	]
+	view/new/options center-face f [resize]
+
+	forever [
+		wait 1 / 15
+		if head? g [draw f/image [pen black box f/size]]
+		draw f/image [image g/1]
+		g: rotate g
+		show f
+	]
+]
+
+gifplayer: does [
+	g: load request-file/only/keep
+	draw-gif: does [
+		if head? g [draw f/image [pen black box f/size]]
+		draw f/image [image g/1]
+		g: rotate g
+		show f
+	]
+	load-new-gif: does [
+		g: load request-file/only/keep
+		f/image: g/1
+		f/size: g/1/size 
+		show f
+	]
+	w: layout [
+		f: image effect [aspect] g/1 [load-new-gif]
+		timer rate 15 [draw-gif]
+	]
+	view/options center-face w [resize]
+]}
+
+
+view-thumbnails: funct [fn][
+
+	keep-suffix fn [%.jpg %.png %.bmp]
+
+	win: layout [
+		style i image 200x200 effect [aspect blur] edge none
+		backcolor white across
+		i i i i i return
+		i i i i i return
+		i i i i i return
+	]
+	;a block of sixteen image objects
+
+	show-thumbs: does [
+		foreach f win/pane [
+			if tail? fn [break]
+			until [
+				success?: attempt [f/image: load fn/1]
+				fn: next fn
+				success?
+			]
+			show f
+		]
+	]
+
+	view/new win
+	win/feel/detect: func [f e][
+		switch e/type [
+			down [show-thumbs]
+			alt-down [fn: skip fn -30 show-thumbs]
+		]
+		e
+	]
+	
+	show-thumbs
+	wait []
+]
+
+eq?: :equal?
+neq?: func [a b][not equal? a b]
+
+image-file?: func [file][
+	find [%.jpg %.gif %.png %.bmp] suffix? file
+]
+
+file-type?: :suffix?
+
+find-in-files: findinfiles: find-in: findin: funct [str][
+	out: copy []
+	f: read-deep wd
+	remove-each f f [dir? f]
+	foreach f f [
+		if find read f str [append out probe f]
+	]
+	out
+]
+
+yawp: does [print "YAWP!"]
+
+handle: func [b][
+	b: reduce [
+		'switch 'event/type b
+		'event
+	]
+	b: func [face event] b
+	insert screen/feel/event-funcs :b
+	append handled :b
+	:b
+]
+
+unhandle: :remove-event-func
+
+handled: event-funcs
+
+test-handle: does[
+	ef: handle [resize [yawp]]
+	? handled
+	unhandle :ef
+	? handled
+	;remove handled
+]
+
+;unhandle: does [remove event-funcs]
+
+
+
+	handle-key: func [b][
+    b: reduce [
+        'switch 'event/key b
+        'event
+    ]
+    b: func [face event] b
+    insert screen/feel/event-funcs :b
+    :b
+]
+{
+fit: funct [a b][
+	c: b/x / max a/x a/y 
+	as-pair (a/x * c) (a/y * c)
+]
+
+
+fit: funct [a b][
+	wide: a/x > a/y
+	if wide [return as-pair b/x b/x / a/x * a/y]
+	as-pair b/y * a/x / a/y b/y
+]
+
+aspect-ratio: a/x / a/y
+
+shrink-to-fit: :fit
+
+;>> fit 234x342 100x100
+;== 68x100
+;>> fit 234x342 800x800
+;== 547x800
+}
+
+{
+
+smx smy max
+
+[s/x s/y] reduce maximum-of first m/x / f: 
+s/x s/y f f / / as-pair
+}
+
+get-fonts: make function! [
+	"Obtain list of fonts on supported platforms."
+	/local s fonts
+] [
+	fonts: copy []
+	either 3 = fourth system/version [
+		call/output {reg query "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"} s: copy ""
+		s: skip parse/all s "^-^/" 4
+		foreach [fn reg style] s [
+			fn: trim first parse/all fn "("
+			all [
+				not find fonts fn
+				not find ["Estrangelo Edessa" "Gautami" "Latha" "Mangal" "Mv Boli" "Raavi" "Shruti" "Tunga"] fn
+				not find fn " Bold"
+				not find fn " Italic"
+				not find fn " Black"
+				not find fn "WST_"
+				insert tail fonts fn
+			]
+		]
+	] [
+		call/output "fc-list" s: copy ""
+		s: parse/all s ":^/"
+		foreach [fn style] s [
+			all [
+				not find fonts fn
+				(size-text make face [text: "A" font: make font [name: fn size: 12]]) <>
+				size-text make face [text: "A" font: make font [name: fn size: 20 style: 'bold]]
+				insert tail fonts fn
+			]
+		]
+	]
+	sort fonts
+]
+
+{"Ladislav Mecir" 03/Jul/2009
+flatten: func [ block [block!] /local result pos rule ] [ result: make block! 0 parse block rule: [ any [ pos: block! :pos into rule | skip (insert/only tail result first pos) ] ] result ]
+}
+
+{copy-till: func [b end][
+	either find b end [
+		copy/part b find b end
+	][b]
+]
+;superceded by slice}
+
+{insert-prober: does [
+	prober: insert-event-func [
+		probe event/type
+		event
+	]
+]}
+
+;ief [. e/type e]
+
+;===Recent
+
+;process [print "hello world" halt]
+
+
+;spawn: spawn-process: :process
+
+;edit current script
+;process join "editor " mold rebol/options/script
+
+;===
+
+at-random: func [b] [
+	at head b random length? head b
+]
+
+;dump-obj/match system/words 'tuple!	;string of all tuples in system/words
+;also, see dump-pane, dump-face
+
+;alias 'find-type "find-datatype"
+
+{find-values: has [w] [
+	w: first system/words
+	o: copy []
+	foreach w w [
+		w: in system/words w 
+		if value? w [append o w]
+	]
+	o
+]}
+
+;provides all words of a particular datatype
+;>> all-types tuple!
+;== gray white silver water black maroon snow blue coal pewter gre...
+
+
+
+;dirs: [%Bookmark/ %Documents/ %Downloads/ %Images/ %Install%20Files/ %Japanese/ %Music/ %Programming/ %Rebol/ %Rebol%20Archive/ %Torrents/ %Videos/]
+
+;each function
+;loop that's like foreach but can use index? in it.
+
+{	;attempt [do gibberish] is better
+
+;You can do a string so all this is redundant
+intend: funct [text] [
+	set/any 'r attempt [load/all text]
+	set/any 'r attempt to-block r
+	either unset? quote r [none][r]
+]
+;intend is attempt without syntax errors.
+intend "234 /4j1/2k3 41;234j ;3412348u-u4as;j;nvcvacvjzxvcnzxcvadfj;alke$#*(#*$J#$"
+
+
+
+intend: func [text] [
+	set/any 'r attempt [do text]
+	either unset? quote r [none] [r]
+]
+;maybe attempt [do gibberish] is better
+}
+
+;===Pronouns
+;Console shorthandsfind 
+
+{hist: funct [][
+	h: reverse copy rebol/console/history 
+	repeat h h [
+		print [";" h]
+	]
+	to-lines h
+	h
+]
+
+it: does [
+	remove rebol/console/history ;do not count this line in console history
+	do pick rebol/console/history 1
+]}
+
+;------------------------------------------
+
+{widen: func [s l] [insert-till s "0" l]}
+
+{format-number: func [s l][
+	c: " "
+	s: form s
+	if decimal? l [
+		dp: to-integer find/tail form l "."
+		clear skip find/tail s "." dp
+	]
+	n: l - length? head s
+	head insert/dup s c n
+]
+
+fmt: format: :format-number
+
+printf: func [n l] [
+	print format-number n l
+]}
+
+;format-number
+;if the number is a decimal but has a .0 at the end of it then it should be made into an integer
+;if decimal?
+
+
+
+
+{;fahr-to-celsius
+to-celsius: func [n] [5. / 9 * n - 32]
+for fahr 0 300 20 [print [fmt fahr 3 fmt to-celsius fahr 6.1]]}
+
+
+{>> format 8.334 6.1
+== "   8.3"}
+
+;printf
+
+kb?: func [d] [round/to (length? d) / 1024 .1]
+
+;rotate rotate-next rot rnext 
+;rotate-back rotate- rotateb rotback rotb rback
+
+whatismyip: does [read http://www.whatismyip.com/automation/n09230945.asp]
+
+script: system/script
+
+spacebar: #" "
+;in windows, the enter key is #"^M"
+space-key: #" "
+enter-key: #"^M"
+backspace-key: #"^H"
+delete-key: #"^~"
+escape-key: #"^["
+
+;cr lf bs and in windows cr or carriage return is the event that happens when you hit the enter key
+;esc: 
+;del:
+
+
+;cr: does [prin newline] ;already defined
+println: does [print ""]
+
+
+quotate: func [str] [rejoin [{"} str {"}]]
+
+dt: delta-time: funct [b] [
+	start: now/precise  
+	do b 
+	difference now/precise start
+] 
+
+prepend: func [series item] [head insert series item]
+
+
+define: funct [str] [
+	it: load/markup join http://definr.com/ form str
+	parse it [
+		to <div id="meaning"> copy page to </div> to end
+	]
+	remove-each tag page [tag? tag] 
+	replace/all form page "&nbsp;" ""
+]
+
+search: funct [b query] [
+	q: form query ;for literals
+	if empty? q [return b]	
+	b: copy b 
+	foreach q parse q none [
+		either #"-" = q/1 [
+			q: remove q
+			remove-each b b [find/any to-string b q]
+		][
+			remove-each b b [not find/any to-string b q]
+		]
+	]
+	b
+]
+
+;f: %"/e/video/The Office S1 - S5/The.Office.S03E01.Gay.Witch.Hunt.avi"
+;>> print form-file f
+;The Office S03E01 Gay Witch Hunt, The Office S1 - S5, video, E, AVI,
+
+
+;===View
+
+view-errors: func [err][
+	err-image: to-image layout [
+		backcolor windows-color
+		origin 5 space 5 
+		h1 "Error"
+		body as-is 200x150 form disarm err 
+	]
+	err-face: center-face layout [
+		origin 0
+		image err-image [
+			unview/only err-face
+		]
+	]
+	view/new/title err-face "Error"
+]
+
+
+demo-view-errors: does [
+	view/new center-face layout [
+		size 200x200
+		box red [2 + "hello"]
+	]
+	view-errors
+]
+{do-events*: does [wait* []]}
+
+;all-types tuple!
+colors: [gray white silver water black maroon snow blue coal pewter green cyan red yellow magenta navy leaf teal olive purple orange oldrab brown coffee sienna crimson violet brick pink gold tan beige ivory linen khaki rebolor wheat aqua forest papaya sky mint reblue base-color yello main-color button-color over-color bar-color windows-edge windows-color]
+
+
+
+;Slim Object 
+;removes fields from an object. Good for probing faces without waiting 20 seconds.
+slim-object: func [obj] [
+	b: body-of obj
+	;{Returns a copy of the body of a function or object.}
+
+	remove-each [word val] b [
+		any [
+			none? :val
+			image? :val
+			all [block? :val find :val image!]
+			find [self pane images image parent-face styles access multi doc] 
+			to-word word
+		]
+	]
+	construct b
+]
+
+
+{probe-style: func ['style] [probe slim get-style style]
+edit-style: func ['style][editor mold slim get-style style]}
+
+;when function
+
+{;handle function is better on-close: func [blk] [
+	insert-event-func [
+		if 'close = event/type blk
+		event
+	]
+]
+
+on-resize: func [b] [
+	resize-event: insert-event-func [
+		if event/type = 'resize :b
+		event
+	]
+]}
+
+;doesn't work :(
+;engage: :switch-of
+{on-scroll: func [fc act] [
+	sb: switch-of fc
+	append sb reduce ['scroll-line bind/copy act sb/key/2]
+]}
+
+;alias-all
+aka: func [b] [
+	foreach [name str] b [
+		alias name str
+	]
+]
+
+;hilight-between-newlines-or-tabs
+
+;aliasing has issues
+{hilight-caret: func [
+	f "face" 
+	e "event"
+] bind/copy [
+	
+	alias 'focal-face "ff"
+	alias 'highlight-start "hs"
+	alias 'highlight-end "he"
+	alias 'caret "c"
+	
+	delim: charset {^-^/}
+	either eq? f ff [unlight-text] [focus/no-show f]
+	c: offset-to-caret f e/offset
+	if hs or he [return none]
+	hs: find/reverse/tail c delim or head c
+	he: find c delim or tail c
+	trim copy/part hs he
+	
+] rebol/view}
+
+{tahoma12: tahoma: make object! [
+    name: "Tahoma"
+    style: 'bold
+    size: 12
+    color: silver
+    offset: 2x2
+    space: 0x0
+    align: 'center
+    valign: 'middle
+    shadow: 0x0
+    colors: reduce [silver 255.180.75]
+]}
+
+;view code
+
+{text-list: text-list with [
+	init: append copy init [
+		sub-area/edge/size: 1x1 
+		sub-area/edge/effect: none
+		;sub/area/edge/color: windows-edge
+	]
+]}
+
+;===Files
+
+random-string: does [
+	o: copy []
+	loop 8 [append o pick "abcdefghijklmnopqrstuvwxyz0123456789" random 36]
+]
+random-file: does [to-file random-string]
+
+
+
+{join-files: funct [f "block of files"] [
+	;doesn't fix file headers :(
+
+	dst: open/direct/binary/new %joined-out
+	
+	foreach f f [
+		src: open/direct/binary f	
+		while [d: copy/part src 100000 ][
+		    append dst d
+		]
+		close src
+	]
+	close dst
+]}
+
+localize-file: func [file] [
+	rejoin [{"} to-local-file clean-path to-file file {"}]
+]
+
+{sortt: :sort-by-type
+sorts: :sort-by-size
+sortd: :sort-by-date}
+
+
+{read-dirs: does [
+	remove-each f read wd [not dir? f] 
+]
+
+read-images: does [
+	remove-each f read wd [
+		not find [%.jpg %.jpeg %.png %.bmp] suffix? f
+	]
+]}
+
+explorer: does [
+	call/shell rejoin [
+		to-local-file %/c/windows/explorer.exe { }
+		{"} to-local-file what-dir {"}
+	]
+]
+
+explore: func [dir] [
+	in-dir dir [explorer]
+]
+
+;===Math
+
+
+divisors: get-divisors: divisors-of: funct [n][
+	o: copy[]
+	for x 2 round sqrt n 1 [
+		if n // x = 0 [
+			repend o [n / x  x]
+		]
+	]
+	repend o [1 n]
+]
+
+
+{
+	=aliases
+	sum total add-all
+	mod: modulus: :remainder
+	product multiply-all
+	len length 
+	fibonacci fib
+	;cross-product
+	;dot-product
+	factorial fac fact
+	binomial-coefficient: 
+	rtd: radians-to-degrees
+	;id: does [import-dll %/c/tcc/cfuncs.c]
+}
+
+dot-product: func [n f][
+	o: copy []
+	foreach n n [append o n * f]
+]
+
+;invert: func [n][1 / n]
+
+how-many: find-n: func [
+	{returns the number of times the query is found in series}
+	s q
+][
+	n: 0
+	while [found? s: find/tail s q][n: n + 1]
+	n
+]
+
+{>> how-many [23 4 234 234 23 423 423 42 34 234 234 23 4] 23
+== 3
+>> how-many "hello my darling hello my baby" "hello"
+== 2
+>> how-many "hello my darling hello my baby" "h"
+== 2
+}
+
+
+{;online algorithm
+lowest-comment-multiple-of: lcm: func [n m][
+	i: minimum n m
+	while [i: i + 1][
+		if all [
+			i // n = 0
+			i // m = 0
+		][
+			return i
+		]
+	]
+]}
+
+
+lowest-comment-multiple-of: lcm: funct [n m][
+	fn: factorize n
+	fm: factorize m
+	f: sort unique union fm fn
+	o: copy []
+	foreach f f [
+		n: max find-n fm f find-n fn f
+		insert/dup o f n
+	]
+	product o
+]
+;mine's faster :)
+
+;Euclidean algorithm
+greatest-common-divisor-of: gcd: funct [a b][
+	forever [
+		c: remainder a b
+		print [a b c]
+		if c = 0 [return b]
+		a: b
+		b: c
+	]
+]
+
+{GCD Discussion gcd 7 60
+halt}
+;gcd 7 60
+;Why does this work. I have no idea.
+;Euclidean algorithm
+;The Euclidean algorithm is based on the principle that the 
+;greatest common divisor of two numbers does not change if the smaller number is repeatedly subtracted from the larger number.
+;if a > b and g is the greatest common divisor then
+;ga - gb = gz
+;so if the subtractions are repeated then
+;ga mod gb = gc 
+;and since gc must be less than gb it can continue 
+;gb mod gc = gd  
+;until gc is zero and then gb is the result. Yay!
+;20120503
+
+{The greatest common divisor is the highest number that will divide two numbers without forming a remainder.
+It is based on the principle that the greatest common divisor of two numbers does not change if the smaller number is subtracted from the larger number.
+;Let g be the greatest common divisor
+
+If both a and b are divisible by the same number then they can be written as the product of two numbers 
+
+a/g = x
+b/g = y
+
+a = gx, g = gy
+
+;if x > y
+gx - gy = z
+
+this can be repeated
+gx mod gy = gz
+;once 
+
+}
+
+fibonacci: funct [n][
+	f: copy [1 0]
+	if n > 45 [f: copy [1. 0.]]
+	loop n [insert f f/1 + f/2]
+	reverse f
+]
+;>> fibonacci 10
+;== [0 1 1 2 3 5 8 13 21 34 55 89]
+
+tau: 2 * pi
+
+;tau / 360 
+;radians-to-degrees: func [n] [n / pi * 180]
+
+divisible?: func [n m] [n // m = 0]
+
+half: func [n] [n / 2]
+
+sum: funct [b] [
+	t: 0. 
+	foreach i reduce b [t: t + i]
+]
+
+product: funct [v] [
+	t: 1.
+	foreach v v [t: t * v]
+]
+
+{fraction: funct[n d][
+	reduce [product n product d]
+]}
+
+
+;>> fraction [2 3423 42 3][223 423 42 342 34]
+;== [862596.0 46068019704.0]
+
+{fraction: funct [b][
+	b: parse-lines b ;should be two lines
+	n: product reduce load b/1
+	d: product reduce load b/2
+	return reduce [n d]
+]
+
+fraction [
+	fac n
+	fac (n - k) fac k
+]}
+
+
+factorial: fac: funct [n][
+	t: 1. 
+	repeat i n [t: t * i] 
+	t
+]
+
+binomial-coefficient: func [n k][
+	(fac n) / 
+	((fac (n - k)) * (fac k))
+]
+
+binomial-coefficient: func [n k][
+	(fac n) / fac (n - k) / (fac k)
+]
+
+
+;choose is a view function used in rotary style
+
+pascals-triangle: does [
+	for x 0 10 1 [
+		for y 0 x 1 [
+			prin round binomial-coefficient x y prin " "
+			;round just removes ".0" from numbers
+		]
+		print ""
+	]
+]
+
+;http://www.rebol.org/view-script.r?script=oneliner-prime-factors.r
+factorize: calc-prime-factors: funct [n][
+	m: 2 i: 1
+	o: copy[]
+	until [
+		either n // m = 0 [n: n / m append o m][m: m + i i: 2]
+		if 1. * m * m > n [append o n n: 1] 
+		n = 1
+	]
+	o
+]
+
+mean: avg: average: func [b] [	
+	divide sum b length? b
+]
+
+;middle: middle-of: funct [b] [at b round half length? b]
+;middle-of [1 2 3] >> [2 3] ;one middle value - 2.
+;middle-of [1 2 3 4] >> [2 3 4] ;there are two middle values, 2 and 3.
+
+median: funct [b] [
+	sort b
+	l: length? b
+	n: either even? l [2] [1]
+	b: at b round (length? b) / 2
+	average copy/part b n
+]
+
+quartiles: box-and-whiskers: funct [b] [
+	sort b
+	m: at b round half length? b
+	l: length? b
+	n: either even? l [2] [1]
+	
+	reduce [
+		b/1
+		median copy/part b m
+		median b
+		median skip m n
+		last b
+	]
+]
+
+range: func [b r] [
+	copy/part at b r/1 r/2
+]
+
+imaginary: funct[n][
+	n: remainder (n - 1) 4
+	pick [i -1 -i 1] n + 1
+]
+
+sigma: funct ['k l h arg] [
+	total collect [
+		for k l h 1 reduce ['keep 'do arg]
+	]
+]
+
+; (x k) x ** k / factorial k
+
+
+;sigma k 0 10 [imaginary ** k x ** k / factorial k] 
+
+;sigma k 0 10 do func [x] [compose [(x) ** k / factorial k]] 3
+
+;sigma k 0 10 [imaginary ** k x ** k / factorial k] 
+
+calc-e: funct [lim][
+	t: 0 x: 1
+	for n 0 lim 1 [t: t + (x ** n / fac n)]
+]
+
+calc-e: func [n "under 1e14 please"] [1 / n + 1 ** n]
+
+calc-cosine: does [
+	t: 0 
+	x: pi
+	for n 0 10 1 [
+		sign: imaginary n  
+		t: t + (sign * (x ** n / fac n))
+	]
+]
+
+{calc-pi: func [n][
+	;my own recipe, kind of stupid
+	;n: 8
+	o: 360 / n
+	r: n * square-root (((sine o) ** 2) + ((1 - cosine o) ** 2))
+]}
+
+;20120619
+calc-pi: func [n][
+	print {n * sine (360 / n) / 2}
+	print [pi "according to rebol"]
+	prin n * sine (360 / n) / 2  
+	print " our calculated value"
+]
+;10e8 triangles produces pi accurate to 16 digits
+;Now I need to derive sine and cosine
+
+;20120619
+calc-sine: func [x "in radians"][
+
+	print {x - x^^3/3! + x^^5/5! - x^^7/7! + x^^9/9!}
+	t: 0.0
+	sign: -1
+	for n 1 10 2 [
+		sign: -1 * sign
+		t: t + (sign * (x ** n / factorial n))
+	]
+]
+
+;right-angle: pi / 2
+
+;calc-sine pi / 4
+
+{Ironically, calculating pi requires sine and calculating sine requires pi. :(}
+
+
+printall: func [l][foreach l l [print l]]
+
+
+;forth [n power n fac div n imaginary mul]
+
+;FORTH FUNCTION IS GOOD FOR MATH
+;But is the parse-math function better?
+
+;taylor series
+
+variance: funct [v "values"][
+	a: average v
+	l: length? v
+	t: 0 ;total
+	foreach v v [t: v - a ** 2 + t]
+	t / l
+]
+
+standard-deviation-of: funct [b] [
+	square-root variance
+]
+
+sample-standard-deviation-of: funct [v "block of values"] [
+	avg: average v
+	d: copy [] ;deviations
+	foreach v v [append d avg - v ** 2]
+	num: sum d
+	den: subtract length? d 1
+	square-root divide num den
+]
+
+prime?: funct [n] [
+	case [
+		n = 2 [yes]
+		n <= 1 or (n // 2 = 0) [no]
+		true [
+			lim: round sqrt n 
+			for i 3 lim 2 [
+				if n // i = 0 [return no]
+			]
+			yes
+		]
+	]
+]
+
+sqrt: :square-root
+square: func [n][n ** 2]
+cube: func [n][n ** 3]
+
+make-chaos: chaos: model-population: funct [
+	r "Above 4 becomes chaotic"
+][
+	;see file 20120731-2
+	x: copy [0.02]
+	loop 2000 [
+		a: attempt [1 - x/1 * x/1 * r]
+		if a [insert x a]
+	]
+	reverse x
+]
+;make-chaos 4
+
+parse-math-replace-list: [
+	"--" "+"
+	"+-" "-"
+	"*-" " * - "
+	"/-" " / - "
+	" e " "e"
+	" e- " "e-"
+	"^^" "** "
+]
+
+calc: func [a][reduce parse-math a]
+
+parse-math: funct [str] [
+	
+	op: charset "*/+-^^()e<>="
+	;e is an operation for exponents, eg 4e-2. 
+	;consequently e cannot be a variable
+	
+	nop: complement op
+	out: copy [] 
+	a: none
+	parse str [
+		some [
+			copy a some nop (append out a) 
+			| copy a some op (append out a)
+		]
+		end	
+	]
+	out: form out
+	foreach [a b] parse-math-replace-list [
+		replace/all out a b
+	]
+	load/all out
+]
+
+
+test-parse-math: has [t] [
+	
+	a: random 99898e2
+	p: random 9
+	;tests
+	t: [
+		"2*3^^2"		[2 * 3 ** 2]
+		"2.3*54^^p*23"	[2.3 * 54 ** p * 23]
+		"-32.45e65+45"	[- 32.45e+65 + 45]
+		"1e-1"			[0.1]
+		"(4+a)*(a+234)"	[(4 + a) * (a + 234)]
+		"a a"			[a a]
+	]
+	foreach [t s] t [
+		. t 
+		. parse-math t
+		. reduce parse-math t
+		. do parse-math t
+		. equal? do s do parse-math t
+		print ""
+	]
+]
+
+{BIG NUMBERS 
+"A noble spirit embiggens the smallest man" - Jebediah Springfield}
+
+;parse-decimal
+
+to-bignum: funct [
+	{7897987 >> [7 8 9 7 9 8 7]
+	to do - extend to work with decimal!}
+	n
+][
+	o: copy []
+	foreach digit form n [
+		append o do to-string digit
+	]
+]
+
+;ensmallen
+;enbiggen
+clean-bignum*: funct [
+	{Keep member integers under ten}
+	b
+] [
+	o: copy [] 
+	. foreach n b [append/only o to-bignum n]
+
+	;make target
+	m: length? o
+	forall o [m: max m add add length? o length? o/1 -1]
+	t: head insert/dup copy [] 0 m
+	head insert/dup o [[]] m - length? o
+	
+	;carry 
+	forall o [
+		p: o/1
+		forall p [
+			pos: subtract index? o -1 + length? p
+			poke t pos add pick t pos p/1 
+		]
+	]
+	. t
+]
+
+clean-bignum: funct [a][
+	;do until all members are within 1 - 9 range
+	until [a: clean-bignum* a (first maximum-of a) < 10]
+	;usually 2 
+	a
+]
+
+test-bignums: funct[] [
+	a: [1] ;this is the big number
+	for b 1 50 1 [
+		forall a [change a a/1 * b] ;multiply all elements of the bignum block
+		a: clean-bignum a ;clean it
+		;print [b "!" newline rejoin a newline newline ]
+	]
+]
+
+
+;b: clean-bignum [45654654]
+;c: copy [] foreach b b [append c 999 * b] b: clean-bignum c
+
+;20120620
+
+{BIG NUMBERS 
+
+"A noble spirit embiggens the smallest man" - Jebediah Springfield
+
+Using blocks instead of numbers overcomes limitations of type system.
+
+[5 3 2] 5 in the hundreds place, 3 in the tens place, 2 in the ones place
+[65 45 2] 65 hundreds, 45 tens, 2 ones
+
+to-bignum 7897987 >> [7 8 9 7 9 8 7]
+;only takes integers
+
+CARRYING
+Operating on a blocks often increases the size of the member integers. 
+Apply the carry function to a bignum to keep the member integers under ten.
+
+carry [65 4456545 2] >> [4 4 5 7 1 9 5 2]
+
+Carry is really the most important function here.
+
+carry* is a bit quicker than carry since it does only one pass.
+It is suitable for intermediate calculations but not for output.
+carry* [65 4456545 2] >> [4 4 5 6 11 9 5 2]
+>> rejoin [4 4 5 6 11 9 5 2] == "445611952" :(
+
+MULTIPLICATION
+
+n: [4 56 54 56 54 654]  multiplier: 987
+forall n [change n n/1 * multiplier]
+n: carry n
+;== [1 0 0 7 5 2 3 6 7 8]
+
+DIVISION
+
+Implement bignum as two blocks, a numerator and a denominator, and 
+multiply the second block by your divisor.
+
+;Example - Make pi into a bignum.
+num: to-bignum replace form pi "." ""
+den: head insert/dup tail copy [1] 0 (-1 + length? find form pi ".")
+reduce [num den]
+;== [[3 1 4 1 5 9 2 6 5 3 5 8 9 7 9] [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]]
+
+ADDITION
+
+To add regular number just append it and then apply carry
+a: [4 4 5 7 1 9 5 2]
+carry append a [456546456]
+;== [9 0 2 2 6 5 9 7 6]
+
+Adding two bignums involves adding their member integers. 
+
+a: [45 654 56 4654] b: [ 789 8798 7 987 78 987 987 ]
+
+;make them both the same length
+ml: max length? a length? b
+insert/dup a 0 ml - length? a
+insert/dup b 0 ml - length? b
+
+;add members and carry
+c: copy []
+repeat n ml [append c add pick a n pick b n]
+c: carry c
+;== [1 6 6 9 9 9 1 2 7 1]
+
+SUBTRACTION - to do
+I have a suspicion that this will require a carry-backward function :(
+
+
+a: [-45 -654 -56 -4654] b: [7898798 7 987 78 987 987 ]
+
+;make them both the same length
+ml: max length? a length? b
+insert/dup a 0 ml - length? a
+insert/dup b 0 ml - length? b
+
+;add members and carry
+c: copy []
+repeat n ml [append c add pick a n pick b n]
+c: carry c
+;== [7 8 9 8 8 0 7 6 1 -9 -5 -7]
+
+
+There are two functions - posify and negate-all
+just run posify several times on a bignum and it'll either be positive 
+or you get the situation that the first number is negative and all the rest
+are positive. In this situation, apply negate-all to the block and 
+run posify several times again. Remember that it is now a negative number.
+
+See %"posify 20120620.r" for a rediculously complicated way of automating
+this proceedure.
+}
+
+
+{bn-insert-till: funct [a b ml "max length"] [
+	head insert/dup a b ml - length? a
+]}
+
+make-bignum: to-bignum: funct [
+	{7897987 >> [7 8 9 7 9 8 7]}
+	n [integer!]
+][
+	o: copy []
+	fn: form n
+	
+	;added for negative integers 
+	sign: 1 if negative? n [sign: -1 remove fn]
+	
+	foreach digit fn [
+		append o sign * do to-string digit
+	]
+]
+
+string-to-bignum: funct [string] [;20120623
+	o: copy []
+	foreach char trim/all string [
+		append o do to-string  char	
+	]
+]
+
+{>> to-bignum -2342342
+== [-2 -3 -4 -2 -3 -4 -2]}
+
+{Sometimes you'll end up with some numbers being positive and some being negative.
+So I made a function called fix-sign. }
+
+all-positive?: func [b][
+	foreach b b [if negative? b [return no]]
+	yes
+]
+
+all-negative?: func [b][
+	foreach b b [if positive? b [return no]]
+	yes
+]
+
+negate-all: funct [n "block"] [
+	o: copy []
+	foreach n n [append o negate n]
+]
+
+posify-bignum: func [n] [
+	forall n [
+		if all [
+			not tail? next n
+			negative? n/2 
+		] [
+			change n n/1 - 1
+			change next n n/2 + 10
+		]	
+	]
+	head n
+]
+
+negify-bignum: func [n] [
+	forall n [
+		if all [
+			not tail? next n
+			positive? n/2 
+		] [
+			change n n/1 + 1
+			change next n n/2 - 10
+		]	
+	]
+	head n
+]
+
+fix-sign: func [b] [
+	until [
+		b: posify-bignum b
+		if all [
+			negative? b/1 
+			all-positive? next b
+		] [
+			until [
+				b: negify-bignum b
+				all-negative? b
+			]
+			remove-each b b [zero? b]
+			return b
+		]
+		all-positive? b
+	]
+	b
+]
+
+{>> posify-bignum [-7 8 9 8 8 0 7 6 1 -9 -5 -7]
+== [7 8 9 8 8 0 7 6 0 0 4 3]
+
+;posify may need several passes
+;if it arises that the first number is negative and the rest 
+;are positive then apply negate-all and then run posify again
+}
+
+
+
+{;decimal-to-bignum
+;Example - Make pi into a bignum.
+num: to-bignum replace form pi "." ""
+den: head insert/dup copy [] 0 (-1 + length? find form pi ".")
+insert den 1
+fraction: reduce [num den]
+
+>> reduce [num den]
+== [[3 1 4 1 5 9 2 6 5 3 5 8 9 7 9] [1 0 0 0 0 0 0 0 0 0 0 0 0 0 0]]
+}
+
+carry*: fix-bignum*: clean-bignum: funct [
+	{Add member integers in their correct place. 
+	E.g. if you've got 456 in the ones place then this func will
+	add the 5 to the tens place and add the 4 to the hundreds place, etc.
+	carry* [65 45 2] >> [6 9 5 2]}
+	b
+] [
+	o: copy [] 
+	foreach n b [append/only o to-bignum n]
+
+	;make target
+	m: length? o
+	forall o [m: max m add add length? o length? o/1 -1]
+	t: head insert/dup copy [] 0 m
+	head insert/dup o [[]] m - length? o
+	
+	;carry 
+	forall o [
+		p: o/1
+		forall p [
+			pos: subtract index? o -1 + length? p
+			poke t pos add pick t pos p/1 
+		]
+	]
+	t
+]
+
+carry: fix-bignum: funct [
+	{Add member integers in their correct place until members 
+	are within a 1 - 9 range. (multiple passes)cs f
+	carry [65 4456545 2] >> [4 4 5 6 11 9 5 2] >> [4 4 5 7 1 9 5 2]}
+	a
+] [
+	until [
+		a: carry* a 
+		10 > absolute first maximum-of a
+	]
+	fix-sign a
+]
+
+test-bignum: funct[] [
+	a: [1] ;this is the big number
+	for b 1 200 1 [
+		print dt [forall a [change a a/1 * b] ;multiply all elements of the bignum block
+		a: carry a ;clean it
+		;print [b "!" newline rejoin a newline newline ]
+		]
+	]
+]
+
+;b: carry [45654654]
+;c: copy [] foreach b b [append c 999 * b] b: carry c
+
+divide-all: funct [b n] [
+	o: copy []
+	foreach b b [append o b / n]
+]
+
+multiply-all: funct [b n] [
+	o: copy []
+	foreach b b [append o b * n]
+]
+
+{http://www.youtube.com/watch?v=D5in5EdjhD0
+Noam Chomsky - "The machine, the ghost, and the limits of understanding".mp4
+influence requires contact was ratified by exchange particles
+
+scope of human intellect, rules, boundaries are required for creativity
+
+cognitive nature
+
+no nature is not alive
+we cannot say that matter does not think - locke
+
+senseless matter
+living or thinking matter
+
+
+hume - motion is the cause of our thought and perception
+
+coherence
+ideas
+
+the brain digests impressions and secretes thought
+
+why is brain greater than gravity
+
+anthropocentrism
+egotism
+
+mental phenomena are entirely natural
+neurophysiologies of the brain
+
+collapse of the mechanical philosophy
+
+50'000 years ago common ancestor human
+
+How futile is the pursuit of intelligibility of the mathematical sciences?
+}
+
+{
+http://en.wikipedia.org/wiki/Quantum_field_theory
+
+
+;cognition microbes
+
+;negev, tavor, galil sniper; israel iwi
+
+;V22 Osprey
+;m24 rifle
+
+http://sgworks.com/
+;sks bullpup, cheap modern gun semi-auto
+
+http://answers.yahoo.com/question/index?qid=20120316194816AAnCnFp
+;Does a 4 blade rotor helicopter create more lift?
+
+;Richard Wilkinson: How economic inequality harms societies 
+http://www.youtube.com/watch?v=cZ7LzE3u7Bw&feature=plcp
+
+;Richard Feynman Lecture on Quantum Electrodynamics: QED. 1/8
+http://www.youtube.com/watch?v=LPDP_8X5Hug
+{tiny core that's very heavy
+
+1926 QM invented, newton
+
+properties of atom calculated
+theory of chemistry,
+
+
+
+empirical rules e.g. chemistry
+chemistry is empirical
+large list of rules rather than a small number of general ones
+
+theory of light with electricity
+
+multiplicity of its actions}
+
+;Wave Motion Interference
+http://www.youtube.com/watch?v=J_xd9hUZ2AY
+
+http://www.youtube.com/watch?feature=fvwrel&v=DAYNwC-aMgQ&NR=1
+}
+
+{The fundamental differe
+
+Human language is imperfect in comparison to programming languages
+Human language attempts to approach the truth
+
+Actually, human language can be as perfect as programming languages. It just needs to use much more conditionals, or assumptions, or assertions.
+
+any decent educational system
+
+robert anton wilson
+
+human language is about determining levels of certainty about different statements
+by analysing evidence or steps of inference.
+
+
+}
+
+
+{
+;recursive exercises
+	
+fib: func [n] [
+	if n = 0 [return . 0]
+	if n = 1 [return . 1]
+	add fib n - 1 fib n - 2
+]
+;. eq? 21 fib 8 ;)
+
+fac: func [n] [
+	if n = 1 [return 1]
+	multiply n fac n - 1
+]
+
+{//go style
+
+function fac (n int) int {
+	if n == 1 {return 1}
+	return n * fac (n - 1)
+}
+
+}
+}
+
+solve-quadratic: func [a b c] [
+	v: square-root (b ** 2 - (4 * a * c))
+	b: negate b
+	reduce [b + v / (2 * a)  b - v / (2 * a)]
+]
+
+
+
+
+
+
+
+comment {
+
+Rebol [
+	Title: "Library-utils"
+	File: %library-utils.r
+	Author: "Ladislav Mecir"
+	Date: 6-Jul-2010/16:38:19+2:00
+	Purpose: {utilities supporting external library interface}
+]
+
+===Errors in the http://www.rebol.com/docs/library.html
+
+*the "Specifying Datatypes in Routines" section contains the "C to REBOL Datatype Conversions" table, in which the next to the last row is incorrect, since the C struct datatype actually cannot be used in routine specification
+
+*the last row of the table contains a char datatype, while the correct datatype should have been a pointer, i.e. the char* datatype
+
+*the last row of the "REBOL to C Datatype Conversion" table states, that the REBOL STRUCT! datatype is converted to a C struct datatype, which is wrong, since REBOL STRUCT! datatype is rather converted to a C pointer
+
+*there are many places, where a pointer datatype is mentioned using an incorrect notation, e.g. void, instead of the proper void*, char, instead of char*
+
+*the REBOL STRUCT! datatype is not directly compatible with C struct, it is usually handled by the interpreter as a pointer, i.e. as a C struct* datatype.
+
+===Computing the size of a datatype
+
+	sizeof 'double ; == 8
+	sizeof 'float ; == 4
+	sizeof 'long ; == 4
+	sizeof 'int ; == 4
+	sizeof 'short ; == 2
+	sizeof 'char* ; == 4 ; pointer
+	sizeof [struct! []] ; == 4 ; pointer
+	sizeof 'integer! ; == 4
+	sizeof 'char ; == 1
+
+===What is the best REBOL counterpart of a C pointer datatype?
+	
+In the C language, there are many distinct pointer types, e.g.:
+void*, char*, double*, int*, float*, etc.
+	
+The C pointers have all the same size, i.e. sizeof char* is the same as sizeof void*, etc., and it is easy to convert one pointer type to another, the only difference being, that pointer arithmetic expressions like p + 1 depend on pointer type.
+	
+According to http://www.rebol.com/docs/library.html#section-25 the most convenient counterparts of C pointers are REBOL integer! values, interpreted as memory addresses.
+	
+---Advantages
+	
+*Integer arithmetic can be used to manipulate memory addresses without performing additional conversions. Doing so, REBOL integers behave exactly like char* pointers in C.
+
+*Integer comparison can be used to compare memory addresses. For example, this is how we can find out in REBOL, whether an address was a NULL pointer in C:
+
+	0 = address
+		
+*Memory addresses can be used in the role of C pointer counterparts both as return values as well as arguments of routines. 
+
+*The address of a REBOL string can be obtained as follows:
+
+	string-address? "Hello, world!" ; == 42605768
+
+*If we know the memory address of a string using the C convention (strigs are nul-terminated in C) we can obtain a copy of the string (in this example we use the address obtained above). Note, that the REBOL interpreter automatically appends the NUL (#"^(00)") character to every string, which means, that all REBOL strings not containing the NUL character adhere to the C string convention too. 
+
+	address-to-string 42605768 ; == "Hello, world!"
+
+*We can even obtain a REBOL binary copy of a memory region at a given address, provided we supply the length of the region we want to copy:
+
+	get-memory 42605768 14
+
+*This is how other values stored at the given address can be obtained:
+
+	convert 42605768 [char] ; == #"H"
+
+*The address of a REBOL binary can be obtained using the STRING-ADDRESS? function too.
+
+*The address of a REBOL struct can be obtained as follows:
+
+	struct-address? make struct! [i [int]] [1]
+
+*Using the SET-MEMORY function it is possible to directly change the memory at the specific address.
+	
+---Disadvantages
+		
+*It may happen, that sizeof 'int is not equal to sizeof 'char*, in which case the code below needs adjustments!
+
+---Alternatives
+
+Other REBOL datatypes that can be used as C pointer counterparts are the struct! datatype, string! datatype or the binary! datatype, but:
+
+*the struct! datatype does not support arithmetic operations, neither it supports comparisons like above
+
+*the string! datatype supports the skip (index) arithmetic, but it does not support comparisons like above, moreover, it works well for the returned char* pointers only in case they represent nul-terminated strings; if returned, we actually obtain a copy of the string returned, not the original, which may be a problem if we want to manipulate the original memory
+
+*the binary! datatype supports the skip (index) arithmetic, but it is not suitable to represent a routine return value
+
+===Converting values (or blocks of values) to binaries and vice versa
+
+REBOL decimals are 64-bit IEEE 754 FP numbers (equivalent of C double) in little endian byte order for Intel processors e.g. This is how to convert them to binary:
+
+	d: convert [0.2] [double]
+	convert d [double] ; == [0.2]
+
+Using an Intel processor, if you prefer a big endian byte order, reverse the conversion result:
+
+	reverse convert [0.2] [double]
+
+Conversion to the 32-bit IEEE 754 FP format (C float):
+
+	convert [0.2] [float]
+
+This is how to convert more values to binary and vice versa:
+
+	b: convert [1 2] [int int]
+	convert b [int int] ; == [1 2]
+
+===The endianness of the processor
+
+The endianness of the processor can be found as follows:
+
+	endian?: pick [little big] 1 = first convert [1] [int]
+
+Another way:
+
+	endian?: get-modes system/ports/system 'endian
+
+===Calling library functions
+
+If a library function f is declared as follows:
+	
+	int f (double* a, int size);
+
+taking a double array a with a defined size, this is how its REBOL counterpart routine can be defined:
+
+	f: make routine! [
+		a [integer!] ; using REBOL integer! in place of a C pointer
+		size [int]
+		return: [int]
+	] library "f"
+
+, and this is how we can call the routine using a size = 6 element array filled with 0.0s:
+
+	size: 6
+	array: make binary! size * sizeof 'double
+	insert/dup array convert [0.0] [double] size
+	result: f string-address? array size
+}
+
+use [
+	int-struct
+	string-struct
+	struct-struct
+] [
+	int-struct: make struct! [int [integer!]] none
+	string-struct: make struct! [string [char*]] none
+	struct-struct: make struct! [struct [struct! [[save] c [char]]]] none
+	
+	sizeof: func [
+		{get the size of a datatype in bytes}
+		datatype [word! block!]
+	] [
+		length? third make struct! compose/deep [value [(datatype)]] none
+	]
+
+	string-address?: func [
+		{get the address of the given string}
+		string [any-string!]
+	] [
+		string-struct/string: string
+		change third int-struct third string-struct
+		int-struct/int
+	]
+
+	address-to-string: func [
+		{get a copy of the nul-terminated string at the given address}
+		address [integer!]
+	] [
+		int-struct/int: address
+		change third string-struct third int-struct
+		string-struct/string
+	]
+	
+	struct-address?: func [
+		{get the address of the given struct}
+		struct [struct!]
+	] [
+		string-address? third struct
+	]
+	
+	get-memory: func [
+		{
+			copy a region of memory having the given address and size,
+			the result is a REBOL binary value
+		}
+		address [integer!]
+		size [integer!]
+		/local struct
+	] [
+		int-struct/int: address
+		struct: make struct! compose/deep [string [char-array (size)]] none
+		change third struct third int-struct
+		as-binary struct/string
+	]
+	
+	set-memory: func [
+		{change a region of memory at the given address}
+		address [integer!]
+		contents [binary! string!]
+	] [
+		int-struct/int: address
+		foreach char as-string contents [
+			change third struct-struct third int-struct
+			struct-struct/struct/c: char
+			int-struct/int: int-struct/int + 1
+		]
+	]
+	
+	convert: func [
+		{
+			convert block to binary,
+			binary to block,
+			or memory region to block
+		}
+		from [block! binary! integer!]
+		spec [block!] {
+			type specification, supported types are listed in
+			http://www.rebol.com/docs/library.html
+		}
+		/local result struct size
+	] [
+		switch type? from [
+			#[datatype! block!] [
+				result: copy #{}
+				repeat i min length? from length? spec [
+					append result third make struct! compose/deep [
+						value [(pick spec i)]
+					] reduce [pick from i]			
+				]
+			]
+			#[datatype! binary!] [
+				result: copy []
+				foreach type spec [
+					struct: make struct! compose/deep [value [(type)]] none
+					size: length? third struct
+					if size > length? from [break]
+					change third struct copy/part from size
+					append result struct/value
+					from: skip from size
+				]
+			]
+			#[datatype! integer!] [
+				result: copy []
+				foreach type spec [
+					struct: make struct! compose/deep [
+						s [struct! [[save] value [(type)]]]
+					] none
+					size: length? third struct/s
+					int-struct/int: from
+					change third struct third int-struct
+					append result struct/s/value
+					from: from + size
+				]
+			]
+		]
+		result
+	]
+]

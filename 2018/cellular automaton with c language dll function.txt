@@ -1,0 +1,41 @@
+
+comment {
+
+#include <windows.h> 
+#define DLL_EXPORT __declspec(dllexport)  
+
+DLL_EXPORT int cellular_automaton(int *a, int la) {
+	
+	int r[] = {0x00ffffff,0x00000000,0x00000000,0x00000000,0x00ffffff,0x00ffffff,0x00000000,0x00ffffff,0x00000000,0x00000000,0x00000000,0x00ffffff};
+	int lr = 12;
+
+	int i, j;
+	for (i=0; i<(la-803); i=i+1) {
+	for (j=0; j<lr; j=j+3) {
+		if (a[i] == r[j] && a[i+1] == r[j+1] && a[i+2] == r[j+2]) {
+			a[i+801] = 0x00ffffff;
+		}
+	}}
+	return a;
+}
+
+//compile with tiny c compiler command   tcc -shared filename.c
+//my machine is little endian which means that the low order byte comes first, opposite to human notation. 
+
+/*
+
+
+do http://www.fm.vslib.cz/~ladislav/rebol/library-utils.r
+
+lib: load/library %cellular_automaton.dll
+cellular-automaton: make routine! [ a [integer!] la [int] return: [integer!] ] lib "cellular_automaton"
+sz: 800x400
+la: sz/x * sz/y
+a: head insert/dup #{} #{0000 0000} la
+change/part at a sz/x / 2 * 4 #{00ffff ff} 4
+r: cellular-automaton string-address? a la
+m: get-memory r la * 4  
+
+i: to-image m
+i/size: sz
+view layout [image i]

@@ -1,0 +1,36 @@
+rebol []
+
+; adjust fonts	http://www.rebol.org/art-display-article.r?article=vhz9xq
+
+foreach [style obj] svv/vid-styles [
+	if obj/font [
+		obj/font/name: "verdana"
+		obj/font/size: 14
+	]
+]
+
+
+win: layout [ 
+	style field field white white edge [size: 1x1 effect: none]
+	style area area white white edge [size: 1x1 effect: none]
+	style link text blue bold font [name: "verdana" size: 16]
+	
+	backcolor white across 
+	field link "copy" [copy-file] link "move" [move-file] 
+	return area 
+]
+
+; view/title win "File Manager"
+
+
+win2: layout [ 
+	style field field white white edge none
+	style area area white white edge none
+	style link text blue white bold font [name: "verdana" size: 16]
+	
+	origin 1 space 1 backcolor silver across 
+	field link "copy" [copy-file] link "move" [move-file] 
+	return area 
+]
+
+view win2

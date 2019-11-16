@@ -1,0 +1,35 @@
+rebol [
+	title: "default function"
+	date: 18-June-2013
+	author: "Nicolas Schmidt"
+	doc: {
+		This function is good for making functions that take an argument that's like an object, e.g.
+		function [local-var: value sth-else: 32]
+		inside the function the default function would be used to define variables within the function, e.g.
+		default 'local-var 3
+		In this way the function can be run with any of the local variables overriden or none like this
+		function [] 
+		This is convenient for complicated functions that have many parameters.
+		Note that the argument block must be bound to a local variable within the 
+		function for this to work, e.g.
+		if you're argument is this
+		test: func [arg /local local-var] [ ... ]
+		then it should include this line in the function.
+		do bind arg 'local-var
+		
+		Remember that funct will not encapsulate the word arguments of default 
+		since they are not set words.		
+]
+
+default: func ['word value][
+	if any [not value? word none? get word] [
+		set word value
+	]
+]
+
+comment {
+set 'spreadsheet: funct [arg /local a] append copy [ do bind arg 'a ] load %test.txt 
+; a is just a local variable to bind the argument to so that this can be done.
+spreadsheet [ cell-size: 100x20 sheet-size: 10x20 ] 
+}
+

@@ -1,0 +1,14 @@
+x86 machines are little endian which means the bytes of values are reversed from what is normal.
+#{ffffff00} is 0x00ffffff in clang in x86
+
+listen: open/lines tcp://:50'000
+
+forever [
+	connection: first wait listen
+	attempt [do first wait connection]
+	close connection
+]
+
+
+view-root
+== %/c/users/nicolas/appdata/roaming/rebol/

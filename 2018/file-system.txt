@@ -1,0 +1,42 @@
+rebol []
+
+;make two files %data.txt and %meta-data.txt
+
+append-file: funct [ file [file!] ] [
+
+	data: read/binary file
+
+	offset: size? %data.txt
+	size: length? data
+	
+	write/binary/append %data.txt data
+	
+	meta-data: load %meta-data.txt
+	append meta-data reduce [ file offset size ]
+	save %meta-data.txt meta-data
+]
+
+read-file: funct [ file ] [
+
+	meta-data: load %meta-data.txt
+	result: find meta-data file
+	if result [ 
+		file: result/1
+		offset: result/2
+		size: result/3
+	]
+
+	port: open/binary/seek %data.txt 
+	data: copy/part skip port offset size
+	; close port ; ?
+]
+
+change-dir %/c/users/user/desktop/file-system
+
+
+; delete-file
+; this would change the filename in meta-data to none
+; it would not, however, remove the offset and size values
+
+; defragment
+

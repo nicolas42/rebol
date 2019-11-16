@@ -1,0 +1,27 @@
+rebol []
+
+in-dir: func [dir code /local wd][
+	wd: what-dir
+	change-dir dir
+	do code
+	change-dir wd
+]
+
+append-dir: func [dir [file!] data] [
+	
+	if #"/" <> last dir [
+		dir: dirize dir
+	]
+	if not exists? dir [
+		make-dir dir
+	]
+	
+	file: 1
+	while [
+		exists? join dir file
+	] [
+		file: file + 1
+	]
+
+	write join dir file data
+]

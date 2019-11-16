@@ -1,0 +1,117 @@
+<html><body bgcolor="#ffffff"><pre>REBOL [
+    Title: "Color REBOL Code in HTML"
+    Date: 21-Jul-2005 ;29-May-2003
+    File: %color-code.r
+    Author: "Carl Sassenrath"
+    Purpose: {
+        Colorize source code based on datatype.  Result is HTML.
+        This script is used to syntax color the library scripts.
+    }
+    History: [
+        "29-May-2003 - Fixed deep parse rule bug."
+        "21-Jul-2005 - Fixed bug if source contains bad chars."
+    ]
+    library: [
+        level: 'intermediate 
+        platform: all 
+        type: [tool] 
+        domain: 'text-processing 
+        tested-under: none 
+        support: none 
+        license: none 
+        see-also: none
+    ]
+]
+
+color-coder: <font color="#8C0000">make</font> <font color="#783C64">object!</font> [
+
+    <font color="#0A0AA0">; Set the color you want for each datatype:
+</font>    colors: [
+         <font color="#783C64">char!</font>          <font color="#007896">0.120.40</font>
+         <font color="#783C64">date!</font>          <font color="#007896">0.120.150</font>
+         <font color="#783C64">decimal!</font>       <font color="#007896">0.120.150</font>
+         <font color="#783C64">email!</font>         <font color="#007896">0.120.40</font>
+         <font color="#783C64">file!</font>          <font color="#007896">0.120.40</font>
+         <font color="#783C64">integer!</font>       <font color="#007896">0.120.150</font>
+         <font color="#783C64">issue!</font>         <font color="#007896">0.120.40</font>
+         <font color="#783C64">money!</font>         <font color="#007896">0.120.150</font>
+         <font color="#783C64">pair!</font>          <font color="#007896">0.120.150</font>
+         <font color="#783C64">string!</font>        <font color="#007896">0.120.40</font>
+         <font color="#783C64">tag!</font>           <font color="#007896">0.120.40</font>
+         <font color="#783C64">time!</font>          <font color="#007896">0.120.150</font>
+         <font color="#783C64">tuple!</font>         <font color="#007896">0.120.150</font>
+         <font color="#783C64">url!</font>           <font color="#007896">0.120.40</font>
+         <font color="#783C64">refinement!</font>    <font color="#007896">160.120.40</font>
+         cmt            <font color="#007896">10.10.160</font>
+    ]
+
+    out: none
+
+    emit: <font color="#8C0000">func</font> [data] [<font color="#8C0000">repend</font> out data]
+
+    to-color: <font color="#8C0000">func</font> [tuple][
+        result: <font color="#8C0000">copy</font> <font color="#007828">"#"</font>
+        <font color="#8C0000">repeat</font> n <font color="#007896">3</font> [<font color="#8C0000">append</font> result <font color="#8C0000">back</font> <font color="#8C0000">back</font> <font color="#8C0000">tail</font> <font color="#8C0000">to-hex</font> <font color="#8C0000">pick</font> tuple n]
+        result
+    ]
+
+    emit-color: <font color="#8C0000">func</font> [value start stop <font color="#A07828">/local</font> color][
+        <font color="#8C0000">either</font> <font color="#8C0000">none?</font> :value [color: <font color="#8C0000">select</font> colors 'cmt][
+            <font color="#8C0000">if</font> <font color="#8C0000">path?</font> :value [value: <font color="#8C0000">first</font> :value]
+            color: <font color="#8C0000">either</font> <font color="#8C0000">word?</font> :value [
+                <font color="#8C0000">any</font> [
+                    <font color="#8C0000">all</font> [<font color="#8C0000">value?</font> :value <font color="#8C0000">any-function?</font> <font color="#8C0000">get</font> :value <font color="#007896">140.0.0</font>]
+                    <font color="#8C0000">all</font> [<font color="#8C0000">value?</font> :value <font color="#8C0000">datatype?</font> <font color="#8C0000">get</font> :value <font color="#007896">120.60.100</font>]
+                ]
+            ][
+                <font color="#8C0000">any</font> [<font color="#8C0000">select</font> colors <font color="#8C0000">type?/word</font> :value]
+            ]
+        ]
+        <font color="#8C0000">either</font> color [ <font color="#0A0AA0">; (Done this way so script can color itself.)
+</font>            emit [<font color="#007828">"-["</font> <font color="#007828">{-font color="}</font> to-color color <font color="#007828">{"-}</font> <font color="#007828">"]-"</font>
+                <font color="#8C0000">copy/part</font> start stop <font color="#007828">"-["</font> <font color="#007828">"-/font-"</font> <font color="#007828">"]-"</font>]
+        ][
+            emit <font color="#8C0000">copy/part</font> start stop
+        ]
+    ]
+
+    <font color="#8C0000">set</font> 'color-code <font color="#8C0000">func</font> [
+        <font color="#007828">"Return color source code as HTML."</font>
+        text [<font color="#783C64">string!</font>] <font color="#007828">"Source code text"</font>
+        <font color="#A07828">/local</font> str new value
+    ][
+        out: <font color="#8C0000">make</font> <font color="#783C64">string!</font> <font color="#007896">3</font> <font color="#8C0000">*</font> <font color="#8C0000">length?</font> text
+
+        <font color="#8C0000">set</font> [value text] <font color="#8C0000">load/next/header</font> <font color="#8C0000">detab</font> text
+        emit <font color="#8C0000">copy/part</font> <font color="#8C0000">head</font> text text
+        spc: <font color="#8C0000">charset</font> [<font color="#007828">#"^(1)"</font> <font color="#8C0000">-</font> <font color="#007828">#" "</font>] <font color="#0A0AA0">; treat like space
+</font>
+        <font color="#8C0000">parse/all</font> text blk-rule: [
+            some [
+                str:
+                some spc new: (emit <font color="#8C0000">copy/part</font> str new) |
+                newline (emit newline)|
+                <font color="#007828">#";"</font> [thru newline | <font color="#8C0000">to</font> end] new: 
+                    (emit-color none str new) |
+                [<font color="#007828">#"["</font> | <font color="#007828">#"("</font>] (emit <font color="#8C0000">first</font> str) blk-rule |
+                [<font color="#007828">#"]"</font> | <font color="#007828">#")"</font>] (emit <font color="#8C0000">first</font> str) <font color="#8C0000">break</font> |
+                <font color="#8C0000">skip</font> (
+                    <font color="#8C0000">set</font> [value new] <font color="#8C0000">load/next</font> str
+                    emit-color :value str new
+                ) :new
+            ]
+        ]
+
+        <font color="#8C0000">foreach</font> [from <font color="#8C0000">to</font>] <font color="#8C0000">reduce</font> [ <font color="#0A0AA0">; (join avoids the pattern)
+</font>            <font color="#007828">"&"</font> <font color="#007828">"&"</font> <font color="#007828">"<"</font> <font color="#007828">"<"</font> <font color="#007828">">"</font> <font color="#007828">">"</font>
+            <font color="#8C0000">join</font> <font color="#007828">"-["</font> <font color="#007828">"-"</font> <font color="#007828">"<"</font> <font color="#8C0000">join</font> <font color="#007828">"-"</font> <font color="#007828">"]-"</font> <font color="#007828">">"</font>
+        ][
+            <font color="#8C0000">replace/all</font> out from <font color="#8C0000">to</font>
+        ]
+
+        <font color="#8C0000">insert</font> out <font color="#007828">{<html><body bgcolor="#ffffff"><pre>}</font>
+        <font color="#8C0000">append</font> out <font color="#007828">{</pre></body></html>}</font>
+    ]
+]
+
+ <font color="#8C0000">write</font> <font color="#007828">%color-code.html</font> <font color="#8C0000">color-code</font> <font color="#8C0000">read</font> <font color="#007828">%color-code.r</font> <font color="#8C0000">browse</font> <font color="#007828">%color-code.html</font></pre></body></html>

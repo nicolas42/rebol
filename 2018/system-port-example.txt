@@ -1,0 +1,40 @@
+rebol []
+
+	port: open system://
+	
+	port/awake: func [port][
+		if all [
+			msg: port/1
+			msg/1 = 'Tray
+		][
+			if 'activate = msg/3 [ do actions/2 ]
+			if 'menu = msg/3 [do select actions msg/4]
+		]
+		return false
+	]
+
+	mode: [
+		tray: [
+			add main  [
+				help: "popup"
+		        menu: [
+		        	face1: "Hello"
+		        	face2: "goodbye"
+		        ]
+		    ]
+		]
+	]
+	
+	actions: copy [
+		face1 [ alert "hello" ]
+		face2 [ alert "goodbye" ]
+	] 
+	
+	set-modes port mode
+	append rebol/ports/wait-list port
+	
+	
+;check http://www.rebol.org/download-a-script.r?script-name=simple-system-tray.r for details on how to remove the system tray
+
+
+

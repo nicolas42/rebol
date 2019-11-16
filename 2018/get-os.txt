@@ -1,0 +1,13 @@
+rebol []
+
+get-os: does [
+    switch system/version/4 [
+        3 [os: "Windows" countos: "n"]
+        2 [os: "MacOSX" countos: "c"]
+        4 [os: "Linux" countos: "c"]
+        5 [os: "BeOS" countos: "c"]
+        7 [os: "NetBSD" countos: "c"]
+        9 [os: "OpenBSD" countos: "c"]
+        10 [os: "SunSolaris" countos: "c"]
+    ]
+]

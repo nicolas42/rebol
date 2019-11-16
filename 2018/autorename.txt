@@ -1,0 +1,27 @@
+rebol [
+	date: 16-6-2013
+]
+
+autorename: funct [
+	{Renames file to file2 if file exists and so on}
+	file 
+	/local suffix n newfile
+][
+	if not exists? file [
+		return file
+	]
+	
+	file: copy file
+	suffix: copy ""
+	if find file "." [
+		suffix: suffix? file
+		clear find/reverse tail file "."
+	]
+	
+	; renames file to file2, not file1 so file can later be manually renamed to file1
+	n: 1
+	until [
+		not exists? newfile: rejoin [file n: n + 1 suffix ]
+	]
+	newfile
+]

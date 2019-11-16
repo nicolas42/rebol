@@ -1,0 +1,73 @@
+index-files1: funct [
+	{Deep read a directory}
+	d "dir" o "output"
+] [attempt [
+
+	f: sort load d ;files
+	foreach f f [append o d/:f]
+	foreach f f [if #"/" = last f [index-files1 d/:f o]]
+	o
+]]
+
+index-files: funct [d "dir or block of dirs"] [
+	d: append copy [] d ;blockize input
+	o: copy [] ;output
+	foreach d d [index-files1 d o]
+	o
+]
+
+files: index-files %../
+
+
+query: "video: futurama"
+
+
+
+video-suffix: [
+	%.avi %.mpg %.mpeg %.divx %.mkv %.mov %.ogg %.rmvb %.rm
+	%.rmv %.m4v %.ogm %.m2v %.wmv %.flv
+]
+
+
+image-suffix: [%.jpg %.jpeg %.png %.bmp %.gif]
+music-suffix: [%.mp3 %.aac %.wma %.m4a]
+
+all-suffixes: [
+	avi mpg mpeg divx mkv mov ogg rmvb rm rmv m4v ogm m2v wmv flv
+	jpg jpeg png bmp gif
+	mp3 aac wma m4a
+]
+
+query: {mp3 23a something's}
+query: parse query none
+
+
+foreach [a b] query [
+	suffix: probe switch a [
+		"video:" "videos:" [video-suffix]
+		"music:" [music-suffix]
+		"images:" "pictures:" "pics:" [image-suffix]
+		"suffix:" "suffixes:" [probe b]
+	]
+]
+suffix
+
+
+video futurama
+
+suffix 'mp3 mwa' futurama
+
+suffix 'mp3 mwa' futurama 'something else to do these types of things' 
+
+something sort by type
+
+
+
+
+
+
+
+
+
+
+

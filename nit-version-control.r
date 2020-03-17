@@ -25,7 +25,7 @@ now-descending: does [
 	
 ]
 
-save: funct[] [
+commit: funct[] [
 
 	v: copy [] 
 	file-walk %. func[f][ 
@@ -38,36 +38,24 @@ save: funct[] [
 		write filename read f
 		append v filename  append v f   
 	]   
-	write/lines rejoin [ %.nit/versions/ now-descending ".txt" ] v
-	write/lines %.nit/versions/current.txt v
+	write/lines rejoin [ %.nit/versions/ now-descending ] v
+	write/lines %.nit/versions/current v
 
 
 	forskip v 2 [ print rejoin [ v/2 " => " v/1 ] ]
 ]
 
 
-restore: funct [/file version-file] [
+revert: funct [/file version-file /to dir] [
 
-
-comment {
-	d: %.nit/versions/
-	v: read d
-	if n < 0 [ n: add n length? v ]
-	f: read/lines join d v/:n
-}	
-	
-	f: read/lines %.nit/versions/current.txt
+	a: read/lines %.nit/versions/current
 	if file [
-		f: read/lines version-file
+		a: read/lines version-file
 	]
 
 	foreach f read %. [ if not find/match f ".nit" [ either dir? f [ delete-dir f ] [ delete f ] ] ]
 	
-	forskip f 2 [ print rejoin [ f/1 " => " f/2 ] attempt [ write to-file f/2 read to-file f/1 ] ]
-	
-	
+	forskip a 2 [ print rejoin [ a/1 " => " a/2 ] attempt [ write to-file a/2 read to-file a/1 ] ]
 	
 ]
-
-
 
